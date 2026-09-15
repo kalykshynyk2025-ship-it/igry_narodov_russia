@@ -1,0 +1,6 @@
+{
+  "name": "Игры народов России - Интерактивный квест",
+  "description": "Адаптивное приложение для проведения интерактивного квеста и фестиваля традиционных народных игр России",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
