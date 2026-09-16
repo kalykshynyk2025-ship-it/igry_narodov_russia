@@ -25,6 +25,15 @@ async function startServer() {
   // Serve uploaded images statically
   app.use('/uploads', express.static(uploadsDir));
 
+  // Fallback for any legacy mythology image requests to the unified cards and map image
+  app.use('/assets/mythology', (req: Request, res: Response) => {
+    const cardsMapPath = path.join(process.cwd(), 'public', 'assets', 'festival-cards-map.jpg');
+    if (fs.existsSync(cardsMapPath)) {
+      return res.sendFile(cardsMapPath);
+    }
+    res.status(404).send('Not found');
+  });
+
   // API Routes
   app.get('/api/health', (req: Request, res: Response) => {
     res.json({ status: 'ok', time: new Date().toISOString() });

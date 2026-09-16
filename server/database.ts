@@ -1,7 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import { INITIAL_GAMES, INITIAL_CODES, INITIAL_PARTICIPANTS, INITIAL_COMPLETIONS, generateInitialSequentialCodes } from '../src/data/initialGames.js';
-import { Game, Code, Participant, GameCompletion, AdminStats, VerifyCodeResponse, MapCircleSettings, DEFAULT_MAP_CIRCLE_SETTINGS } from '../src/types/index.js';
+import { Game, Code, Participant, GameCompletion, AdminStats, VerifyCodeResponse, MapCircleSettings, DEFAULT_MAP_CIRCLE_SETTINGS, DEFAULT_GAME_CARD_IMAGE } from '../src/types/index.js';
 
 const DB_FILE_PATH = path.join(process.cwd(), 'data', 'festival_db.json');
 
@@ -29,8 +29,10 @@ class InMemoryDatabase {
               g.imageUrl = initialMatch.imageUrl;
               g.mythologyCreature = initialMatch.mythologyCreature;
               g.mythologyCulture = initialMatch.mythologyCulture;
-              g.mythologyDepiction = initialMatch.mythologyDepiction;
+              delete (g as any).mythologyDepiction;
               g.mythologyDescription = initialMatch.mythologyDescription;
+            } else {
+              delete (g as any).mythologyDepiction;
             }
             this.games.set(g.id, g);
           }
@@ -217,7 +219,7 @@ class InMemoryDatabase {
       number: nextNumber,
       codePrefix: prefix,
       hostName: gameData.hostName || 'Ведущий площадки',
-      imageUrl: gameData.imageUrl || 'https://images.unsplash.com/photo-1511193311914-0346f16efe90?w=800&auto=format&fit=crop&q=80',
+      imageUrl: gameData.imageUrl || DEFAULT_GAME_CARD_IMAGE,
       mapX: typeof gameData.mapX === 'number' ? gameData.mapX : 50,
       mapY: typeof gameData.mapY === 'number' ? gameData.mapY : 50,
       status: gameData.status || 'active'

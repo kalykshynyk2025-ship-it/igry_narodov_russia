@@ -1,6 +1,6 @@
 import React from 'react';
 import { CheckCircle2, ChevronRight, MapPin, User, CircleDashed } from 'lucide-react';
-import { Game } from '../types';
+import { Game, DEFAULT_GAME_CARD_IMAGE, cleanProhibitedPhrases } from '../types';
 
 interface GameCardProps {
   game: Game;
@@ -25,21 +25,16 @@ export const GameCard: React.FC<GameCardProps> = ({ game, isCompleted, onSelect 
     >
       {/* Top Banner / Photo */}
       <div className="relative h-36 w-full bg-gray-100 overflow-hidden border-b border-gray-100">
-        {game.imageUrl ? (
-          <img
-            src={game.imageUrl}
-            alt={game.name}
-            className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
-            loading="lazy"
-            onError={(e) => {
-              (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1511193311914-0346f16efe90?w=800&auto=format&fit=crop&q=80';
-            }}
-          />
-        ) : (
-          <div className="w-full h-full bg-gray-200 flex items-center justify-center text-gray-400 font-mono text-sm">
-            Фото точки
-          </div>
-        )}
+        <img
+          src={game.imageUrl || DEFAULT_GAME_CARD_IMAGE}
+          alt={game.name}
+          className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+          loading="lazy"
+          referrerPolicy="no-referrer"
+          onError={(e) => {
+            (e.target as HTMLImageElement).src = DEFAULT_GAME_CARD_IMAGE;
+          }}
+        />
 
         {/* Gradient overlay for text legibility */}
         <div className="absolute inset-0 bg-gradient-to-t from-gray-950/70 via-gray-950/20 to-transparent" />
@@ -91,10 +86,10 @@ export const GameCard: React.FC<GameCardProps> = ({ game, isCompleted, onSelect 
             {game.description || game.rules}
           </p>
 
-          {game.mythologyCreature && (
-            <div className="mb-2.5 px-2.5 py-1.5 rounded-lg bg-amber-50/80 border border-amber-200/70 text-[11px] text-amber-900 flex items-center gap-1.5 truncate">
+          {game.mythologyDescription && (
+            <div className="mb-2.5 px-2.5 py-1.5 rounded-lg bg-amber-50/80 border border-amber-200/70 text-[11px] text-amber-950 flex items-center gap-1.5 truncate">
               <span className="text-amber-700 font-bold shrink-0">🎨 Миф:</span>
-              <span className="truncate font-medium">{game.mythologyCreature}</span>
+              <span className="truncate italic font-medium">{cleanProhibitedPhrases(game.mythologyDescription)}</span>
             </div>
           )}
 

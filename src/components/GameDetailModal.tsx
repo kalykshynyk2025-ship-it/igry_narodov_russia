@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { X, CheckCircle2, MapPin, Users, PackageCheck, ScrollText, KeyRound, User, AlertCircle, Sparkles, Palette } from 'lucide-react';
-import { Game } from '../types';
+import { Game, DEFAULT_GAME_CARD_IMAGE, cleanProhibitedPhrases } from '../types';
 
 interface GameDetailModalProps {
   game: Game | null;
@@ -27,20 +27,15 @@ export const GameDetailModal: React.FC<GameDetailModalProps> = ({
       >
         {/* Banner with Game Photo */}
         <div className="relative h-44 sm:h-52 w-full bg-gray-900 overflow-hidden border-b border-gray-200">
-          {game.imageUrl ? (
-            <img
-              src={game.imageUrl}
-              alt={game.name}
-              className="w-full h-full object-cover"
-              onError={(e) => {
-                (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1511193311914-0346f16efe90?w=800&auto=format&fit=crop&q=80';
-              }}
-            />
-          ) : (
-            <div className="w-full h-full bg-gray-900 flex items-center justify-center text-gray-500 font-mono">
-              Фото игровой точки
-            </div>
-          )}
+          <img
+            src={game.imageUrl || DEFAULT_GAME_CARD_IMAGE}
+            alt={game.name}
+            className="w-full h-full object-cover"
+            referrerPolicy="no-referrer"
+            onError={(e) => {
+              (e.target as HTMLImageElement).src = DEFAULT_GAME_CARD_IMAGE;
+            }}
+          />
 
           <div className="absolute inset-0 bg-gradient-to-t from-gray-950 via-gray-950/40 to-transparent" />
 
@@ -111,40 +106,24 @@ export const GameDetailModal: React.FC<GameDetailModalProps> = ({
             </div>
           </div>
 
-          {/* Mythological Creature & Watercolor Sketch Section */}
-          {(game.mythologyCreature || game.mythologyDescription) && (
-            <div className="bg-amber-50/70 rounded-2xl p-4 border border-amber-200/80 shadow-xs">
-              <div className="flex items-center justify-between gap-2 mb-2 flex-wrap">
-                <div className="flex items-center gap-2 text-amber-950 font-bold text-sm sm:text-base">
+          {/* Mythological Description Section */}
+          {game.mythologyDescription && (
+            <div className="bg-gradient-to-br from-amber-50 to-orange-50/50 rounded-2xl p-4 border border-amber-200/80 shadow-xs mb-6">
+              <div className="flex items-center justify-between gap-2 mb-2.5 flex-wrap">
+                <div className="flex items-center gap-2 text-amber-900 font-bold text-sm sm:text-base">
                   <Palette className="w-4 h-4 text-amber-700" />
-                  <span>Мифология и акварельный эскиз</span>
+                  <span>Мифология и сказания</span>
                 </div>
-                <div className="flex items-center gap-1.5 flex-wrap">
-                  {game.mythologyCulture && (
-                    <span className="px-2 py-0.5 rounded-md bg-amber-100/90 text-amber-900 text-[11px] font-medium border border-amber-300/60">
-                      {game.mythologyCulture}
-                    </span>
-                  )}
-                  {game.mythologyDepiction && (
-                    <span className="px-2 py-0.5 rounded-md bg-white text-amber-800 text-[11px] font-bold border border-amber-200 shadow-xs">
-                      Ракурс: {game.mythologyDepiction}
-                    </span>
-                  )}
-                </div>
+                {game.mythologyCulture && (
+                  <span className="px-2 py-0.5 rounded-md bg-amber-100/90 text-amber-900 text-[11px] font-medium border border-amber-300/60">
+                    {cleanProhibitedPhrases(game.mythologyCulture)}
+                  </span>
+                )}
               </div>
 
-              {game.mythologyCreature && (
-                <div className="text-xs sm:text-sm font-bold text-amber-900 mb-1.5 flex items-center gap-1.5">
-                  <Sparkles className="w-3.5 h-3.5 text-amber-600 shrink-0" />
-                  <span>Персонаж: {game.mythologyCreature}</span>
-                </div>
-              )}
-
-              {game.mythologyDescription && (
-                <p className="text-amber-950/90 leading-relaxed text-xs sm:text-sm italic bg-white/70 p-3 rounded-xl border border-amber-200/50">
-                  «{game.mythologyDescription}»
-                </p>
-              )}
+              <p className="text-amber-950/90 leading-relaxed text-xs sm:text-sm italic bg-white/70 p-3 rounded-xl border border-amber-200/50">
+                «{cleanProhibitedPhrases(game.mythologyDescription)}»
+              </p>
             </div>
           )}
 

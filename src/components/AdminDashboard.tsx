@@ -39,7 +39,7 @@ import {
   Printer,
   Server
 } from 'lucide-react';
-import { Game, Participant, Code, GameCompletion, AdminStats, MapCircleSettings, DEFAULT_MAP_CIRCLE_SETTINGS } from '../types';
+import { Game, Participant, Code, GameCompletion, AdminStats, MapCircleSettings, DEFAULT_MAP_CIRCLE_SETTINGS, DEFAULT_GAME_CARD_IMAGE, cleanProhibitedPhrases } from '../types';
 import { api } from '../services/api';
 import { SchematicFestivalMap } from './SchematicFestivalMap';
 import { ImageUploader } from './ImageUploader';
@@ -246,7 +246,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       participants: '2-6 человек',
       equipment: '',
       location: 'Сектор фестиваля',
-      imageUrl: 'https://images.unsplash.com/photo-1544717305-2782549b5136?auto=format&fit=crop&w=800&q=80',
+      imageUrl: DEFAULT_GAME_CARD_IMAGE,
       mapX: 50,
       mapY: 50,
       status: 'active'
@@ -285,7 +285,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         participants: gameFormData.participants || 'Любое количество',
         equipment: gameFormData.equipment || 'Не требуется',
         location: gameFormData.location || 'Поляна фестиваля',
-        imageUrl: gameFormData.imageUrl || 'https://images.unsplash.com/photo-1544717305-2782549b5136?auto=format&fit=crop&w=800&q=80',
+        imageUrl: gameFormData.imageUrl || DEFAULT_GAME_CARD_IMAGE,
         mapX: Number(gameFormData.mapX) || 50,
         mapY: Number(gameFormData.mapY) || 50,
         status: gameFormData.status || 'active'
@@ -540,17 +540,15 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               >
                 {/* Image Header */}
                 <div className="relative h-36 bg-gray-100 border-b border-gray-100">
-                  {game.imageUrl ? (
-                    <img
-                      src={game.imageUrl}
-                      alt={game.name}
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center text-gray-400 font-mono text-xs">
-                      Нет фото
-                    </div>
-                  )}
+                  <img
+                    src={game.imageUrl || DEFAULT_GAME_CARD_IMAGE}
+                    alt={game.name}
+                    className="w-full h-full object-cover"
+                    referrerPolicy="no-referrer"
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).src = DEFAULT_GAME_CARD_IMAGE;
+                    }}
+                  />
 
                   <div className="absolute top-2.5 left-2.5 flex items-center gap-1.5">
                     <span className="px-2 py-0.5 rounded-md bg-white/95 text-gray-900 font-mono text-xs font-bold shadow-xs">
@@ -602,12 +600,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     </span>
                   </div>
 
-                  {game.mythologyCreature && (
-                    <div className="flex items-center justify-between text-[11px] bg-amber-50/70 px-2.5 py-1 rounded-md border border-amber-200/60">
-                      <span className="text-amber-900 font-semibold truncate">🎨 {game.mythologyCreature}</span>
-                      {game.mythologyDepiction && (
-                        <span className="text-amber-700 text-[10px] shrink-0 font-medium ml-1">({game.mythologyDepiction})</span>
-                      )}
+                  {game.mythologyDescription && (
+                    <div className="flex items-center text-[11px] bg-amber-50/70 px-2.5 py-1 rounded-md border border-amber-200/60">
+                      <span className="text-amber-900 italic line-clamp-1">🎨 {cleanProhibitedPhrases(game.mythologyDescription)}</span>
                     </div>
                   )}
 

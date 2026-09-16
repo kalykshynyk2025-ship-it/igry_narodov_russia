@@ -12,7 +12,7 @@
       "location": "Асфальт или трава (Павильон «Шахматы и Шашки»)",
       "status": "active",
       "category": "Интеллектуальные",
-      "imageUrl": "/assets/mythology/game-1-altai-shatra-eezi.jpg",
+      "imageUrl": "/assets/games/game-1.jpg",
       "hostName": "Аржан Торбоков",
       "codePrefix": "ALTAI",
       "nextSequentialCode": "ALTAI-001",
@@ -20,8 +20,7 @@
       "mapY": 28,
       "mythologyCreature": "Ээзи (Горный дух-хозяин Алтая)",
       "mythologyCulture": "Алтайская мифология",
-      "mythologyDepiction": "в полный рост",
-      "mythologyDescription": "Акварельный эскиз: мудрый горный дух Алтая Ээзи с ветвистыми рогами благородного марала в полный рост задумчиво сидит среди кедров и скал, двигая костяные шашки по резной деревянной доске шатра."
+      "mythologyDescription": "Мудрый горный дух Алтая Ээзи с ветвистыми рогами благородного марала задумчиво сидит среди кедров и скал, передвигая костяные фигурки по резной доске шатра."
     },
     {
       "id": "game-2",
@@ -35,7 +34,7 @@
       "location": "Этно-юрта хакасской культуры",
       "status": "active",
       "category": "Ловкость и меткость",
-      "imageUrl": "/assets/mythology/game-2-khakass-khazyh-paw.jpg",
+      "imageUrl": "/assets/games/game-2.jpg",
       "hostName": "Алексей Николаев",
       "codePrefix": "HAZYH",
       "nextSequentialCode": "HAZYH-001",
@@ -43,8 +42,7 @@
       "mapY": 22,
       "mythologyCreature": "Чир-ээзи (Степной и таёжный дух земли)",
       "mythologyCulture": "Хакасская мифология",
-      "mythologyDepiction": "только лапы и руки",
-      "mythologyDescription": "Акварельный эскиз: крупный план пушистой когтистой лапы хакасского духа земли Чир-ээзи с серебряным перстнем, совершающей точный хлесткий щелчок по альчику-стреле над деревянным игровым полем."
+      "mythologyDescription": "Пушистая когтистая лапа хакасского духа земли Чир-ээзи с серебряным кольцом совершает точный хлесткий щелчок по альчику-стреле над деревянным игровым полем."
     },
     {
       "id": "game-3",
@@ -58,7 +56,7 @@
       "location": "Северная поляна, 7х5м",
       "status": "active",
       "category": "Силовые и беговые",
-      "imageUrl": "/assets/mythology/game-3-mansi-narty-menkv.jpg",
+      "imageUrl": "/assets/games/game-3.jpg",
       "hostName": "Михаил Самбиндалов",
       "codePrefix": "NARTY",
       "nextSequentialCode": "NARTY-001",
@@ -66,8 +64,7 @@
       "mapY": 18,
       "mythologyCreature": "Менкв (Лесной исполин-великан тайги)",
       "mythologyCulture": "Мансийская мифология",
-      "mythologyDepiction": "в полный рост",
-      "mythologyDescription": "Акварельный эскиз: могучий мансийский лесной дух Менкв с остроконечной головой и мшистым меховым облачением в полный рост легко перемахивает через ряд заснеженных нарт, поднимая вихрь серебристых снежинок."
+      "mythologyDescription": "Могучий мансийский лесной дух Менкв с остроконечной головой и мшистым меховым облачением легко перемахивает через ряд заснеженных нарт, поднимая вихрь серебристых снежинок."
     },
     {
       "id": "game-4",
@@ -81,7 +78,7 @@
       "location": "Спортивный помост Саха, 7х7м",
       "status": "active",
       "category": "Силовые и беговые",
-      "imageUrl": "/assets/mythology/game-4-yakut-mas-hands.jpg",
+      "imageUrl": "/assets/games/game-4.jpg",
       "hostName": "Айсен Федоров",
       "codePrefix": "MAS",
       "nextSequentialCode": "MAS-001",
@@ -89,8 +86,7 @@
       "mapY": 24,
       "mythologyCreature": "Духи Олонхо (Ледяной Айыы и Огненный Баатыр)",
       "mythologyCulture": "Якутский эпос Олонхо",
-      "mythologyDepiction": "только лапы и руки",
-      "mythologyDescription": "Акварельный эскиз: две мощные мифические руки со сжатыми напряженными пальцами — морозно-синяя рука духа северного сияния и огненно-золотая лапа таёжного духа — намертво вцепились в деревянную палку над доской упора."
+      "mythologyDescription": "Мифические руки — морозно-синяя рука духа северного сияния и огненно-золотая лапа таёжного духа — намертво вцепились в деревянную палку над доской упора в священном поединке."
     },
     {
       "id": "game-5",
@@ -104,7 +100,7 @@
       "location": "Столы мастерских, 5 столов",
       "status": "active",
       "category": "Ловкость и меткость",
-      "imageUrl": "/assets/mythology/game-5-khanty-kevyunt-misne.jpg",
+      "imageUrl": "/assets/games/game-5.jpg",
       "hostName": "Светлана Молданова",
       "codePrefix": "KEVYU",
       "nextSequentialCode": "KEVYU-001",
@@ -112,8 +108,7 @@
       "mapY": 32,
       "mythologyCreature": "Миснэ (Лесная дева тайги и покровительница)",
       "mythologyCulture": "Хантыйская мифология",
-      "mythologyDepiction": "только лапы и руки",
-      "mythologyDescription": "Акварельный эскиз: изящная тонкая рука лесной девы Миснэ в плетеных берестяных браслетах грациозно подбрасывает в воздух гладкие речные камешки, подхватывая их над узорным берестяным туеском."
+      "mythologyDescription": "Изящная тонкая рука лесной девы Миснэ в плетеных берестяных браслетах грациозно подбрасывает в воздух гладкие речные камешки, подхватывая их над узорным туеском."
     },
     {
       "id": "game-6",
@@ -127,7 +122,7 @@
       "location": "Марийский двор, 7х7м",
       "status": "active",
       "category": "Подвижные игры",
-      "imageUrl": "/assets/mythology/game-6-mari-yildar-ovda-eyes.jpg",
+      "imageUrl": "/assets/games/game-6.jpg",
       "hostName": "Эльвира Кугубаева",
       "codePrefix": "YILDAR",
       "nextSequentialCode": "YILDAR-001",
@@ -135,8 +130,7 @@
       "mapY": 45,
       "mythologyCreature": "Овда (Таинственные лесные духи марийских дубрав)",
       "mythologyCulture": "Марийская мифология",
-      "mythologyDepiction": "взгляд и силуэт",
-      "mythologyDescription": "Акварельный эскиз: сквозь густые замшелые дубовые ветви и лесной туман проступают сияющие янтарные глаза и хитрый взгляд Овды, а длинная цепкая лапа с когтем бесшумно тянется к плетеным лаптям."
+      "mythologyDescription": "Сквозь густые замшелые дубовые ветви и лесной туман сияют янтарные очи Овды, а длинная цепкая лапа с когтем бесшумно тянется к плетеным лаптям."
     },
     {
       "id": "game-7",
@@ -150,7 +144,7 @@
       "location": "Центральная поляна, 7х7м",
       "status": "active",
       "category": "Командные",
-      "imageUrl": "/assets/mythology/game-7-siberia-tavoyun-kutkh.jpg",
+      "imageUrl": "/assets/games/game-7.jpg",
       "hostName": "Ильдар Сабиров",
       "codePrefix": "SEVEN",
       "nextSequentialCode": "SEVEN-001",
@@ -158,8 +152,7 @@
       "mapY": 42,
       "mythologyCreature": "Кутх (Великий Ворон — творец и демиург)",
       "mythologyCulture": "Мифология коренных народов Сибири",
-      "mythologyDepiction": "в полный рост",
-      "mythologyDescription": "Акварельный эскиз: священный Ворон Кутх в шаманском перьевом одеянии в полный рост направляет ритуальный резной посох в священном круге духов, объединяя стихии в старинной игре."
+      "mythologyDescription": "Священный Ворон Кутх в шаманском перьевом одеянии направляет ритуальный резной посох в священном круге духов, объединяя стихии в старинной игре."
     },
     {
       "id": "game-8",
@@ -173,7 +166,7 @@
       "location": "Огороженная площадка, 20х20м",
       "status": "active",
       "category": "Ловкость и меткость",
-      "imageUrl": "/assets/mythology/game-8-altai-kamchy-whip.jpg",
+      "imageUrl": "/assets/games/game-8.jpg",
       "hostName": "Батыр Кыпчаков",
       "codePrefix": "KAMCHY",
       "nextSequentialCode": "KAMCHY-001",
@@ -181,8 +174,7 @@
       "mapY": 38,
       "mythologyCreature": "Темир-Каан (Дух грозовых ветров и бурь)",
       "mythologyCulture": "Алтайский героический эпос",
-      "mythologyDepiction": "только лапы и руки",
-      "mythologyDescription": "Акварельный эскиз: из грозовой лазурной тучи протягивается жилистая рука алтайского духа ветра с плетёным кнутом-камчы, молниеносным щелчком сбивающим резные колышки на степном холме."
+      "mythologyDescription": "Из грозовой лазурной тучи протягивается жилистая рука алтайского духа ветра с плетёным кнутом-камчы, молниеносным щелчком сбивающим резные колышки на степном холме."
     },
     {
       "id": "game-9",
@@ -196,7 +188,7 @@
       "location": "Игровая площадка, 10х10м",
       "status": "active",
       "category": "Командные",
-      "imageUrl": "/assets/mythology/game-9-mari-yujme-spirit.jpg",
+      "imageUrl": "/assets/games/game-9.jpg",
       "hostName": "Олег Григорьев",
       "codePrefix": "YUJME",
       "nextSequentialCode": "YUJME-001",
@@ -204,8 +196,7 @@
       "mapY": 44,
       "mythologyCreature": "Чодыра-оза (Крылатый хранитель священных рощ)",
       "mythologyCulture": "Марийская мифология",
-      "mythologyDepiction": "в полный рост",
-      "mythologyDescription": "Акварельный эскиз: крылатый марийский природный дух в расшитой тунике в вихре золотой осенней листвы взмывает в прыжке, на лету отбивая мягкий плетеный цветочный мяч."
+      "mythologyDescription": "Крылатый марийский природный дух Чодыра-оза в расшитой тунике в вихре золотой осенней листвы взмывает в прыжке, на лету отбивая мягкий плетеный цветочный мяч."
     },
     {
       "id": "game-10",
@@ -219,7 +210,7 @@
       "location": "Беговая дорожка, 7х7м",
       "status": "active",
       "category": "Силовые и беговые",
-      "imageUrl": "/assets/mythology/game-10-ingush-beg-nart.jpg",
+      "imageUrl": "/assets/games/game-10.jpg",
       "hostName": "Магомед Евлоев",
       "codePrefix": "BEGPA",
       "nextSequentialCode": "BEGPA-001",
@@ -227,8 +218,7 @@
       "mapY": 48,
       "mythologyCreature": "Сеска Солса (Могучий предводитель нартов)",
       "mythologyCulture": "Ингушский нартский эпос",
-      "mythologyDepiction": "в полный рост",
-      "mythologyDescription": "Акварельный эскиз: нартский богатырь-исполин в развевающейся горской бурке и орлиных перьях на полной скорости мчит по каменистому ущелью Кавказа, сжимая в руке родовую деревянную палицу."
+      "mythologyDescription": "Нартский богатырь-исполин Сеска Солса в развевающейся горской бурке и орлиных перьях на полной скорости мчит по каменистому ущелью Кавказа, сжимая в руке родовую деревянную палицу."
     },
     {
       "id": "game-11",
@@ -242,7 +232,7 @@
       "location": "Башкирский майдан, 15х10м",
       "status": "active",
       "category": "Силовые и беговые",
-      "imageUrl": "/assets/mythology/game-11-bashkir-yugeresh-shurale.jpg",
+      "imageUrl": "/assets/games/game-11.jpg",
       "hostName": "Айдар Хакимов",
       "codePrefix": "YUGER",
       "nextSequentialCode": "YUGER-001",
@@ -250,8 +240,7 @@
       "mapY": 62,
       "mythologyCreature": "Шурале (Озорной лесной дух с рогом во лбу)",
       "mythologyCulture": "Башкирский фольклор",
-      "mythologyDepiction": "в полный рост",
-      "mythologyDescription": "Акварельный эскиз: стройный лесной дух Шурале с аккуратным рогом и лукавой улыбкой на полной скорости несётся наперегонки через золотую берёзовую рощу, легко перескакивая поваленные сосны."
+      "mythologyDescription": "Стройный лесной дух Шурале с аккуратным рогом и лукавой улыбкой на полной скорости несётся наперегонки через золотую берёзовую рощу, легко перескакивая поваленные сосны."
     },
     {
       "id": "game-12",
@@ -265,7 +254,7 @@
       "location": "Хороводная поляна, 8х8м",
       "status": "active",
       "category": "Командные",
-      "imageUrl": "/assets/mythology/game-12-mari-shiy-gate.jpg",
+      "imageUrl": "/assets/games/game-12.jpg",
       "hostName": "Алёна Петрова",
       "codePrefix": "SHIY",
       "nextSequentialCode": "SHIY-001",
@@ -273,8 +262,7 @@
       "mapY": 58,
       "mythologyCreature": "Юмын ӱдыр (Небесные светлые девы солнца)",
       "mythologyCulture": "Марийская мифология",
-      "mythologyDepiction": "в полный рост",
-      "mythologyDescription": "Акварельный эскиз: две сияющие небесные девы Юмын ӱдыр в белых одеждах соткали золотую арку ворот своими сплетенными руками над солнечной поляной, пропуская хоровод духов."
+      "mythologyDescription": "Две сияющие небесные девы Юмын ӱдыр в белых одеждах соткали золотую арку ворот своими сплетенными руками над солнечной поляной, пропуская хоровод духов."
     },
     {
       "id": "game-13",
@@ -288,7 +276,7 @@
       "location": "Силовая зона, 10х10м",
       "status": "active",
       "category": "Силовые и беговые",
-      "imageUrl": "/assets/mythology/game-13-khakass-tartys-belt.jpg",
+      "imageUrl": "/assets/games/game-13.jpg",
       "hostName": "Владислав Тороков",
       "codePrefix": "TARTYS",
       "nextSequentialCode": "TARTYS-001",
@@ -296,8 +284,7 @@
       "mapY": 56,
       "mythologyCreature": "Таг-эзи и Чол-эзи (Духи гор и степных ветров)",
       "mythologyCulture": "Хакасская мифология",
-      "mythologyDepiction": "только лапы и руки",
-      "mythologyDescription": "Акварельный эскиз: крупный план могучих рук двух стихийных духов, до белизны суставов стянувших широкий багряный шелковый кушак в богатырском поединке над чертой степного кургана."
+      "mythologyDescription": "Могучие руки двух стихийных духов степей и гор до белизны суставов стянули широкий багряный шелковый кушак в богатырском поединке над чертой кургана."
     },
     {
       "id": "game-14",
@@ -311,7 +298,7 @@
       "location": "Дальний сектор метания, 15х15м",
       "status": "active",
       "category": "Силовые и беговые",
-      "imageUrl": "/assets/mythology/game-14-khakass-kamen-shoulder.jpg",
+      "imageUrl": "/assets/games/game-14.jpg",
       "hostName": "Сергей Чебодаев",
       "codePrefix": "KAMEN",
       "nextSequentialCode": "KAMEN-001",
@@ -319,8 +306,7 @@
       "mapY": 60,
       "mythologyCreature": "Алып (Древний каменный исполин степей)",
       "mythologyCulture": "Хакасские сказания об алыпах",
-      "mythologyDepiction": "взгляд и силуэт",
-      "mythologyDescription": "Акварельный эскиз: сквозь предрассветный туман видны горящие очи и каменное плечо древнего алыпа, чьи гигантские лапы из скальной породы перекидывают огромный валун назад через плечо."
+      "mythologyDescription": "Сквозь предрассветный туман видны горящие очи древнего хакасского алыпа, чьи гигантские каменные лапы перекидывают огромный валун назад через плечо."
     },
     {
       "id": "game-15",
@@ -334,7 +320,7 @@
       "location": "Кавказский сектор, 10х10м",
       "status": "active",
       "category": "Подвижные игры",
-      "imageUrl": "/assets/mythology/game-15-ossetian-djigit-uastyrdzhi.jpg",
+      "imageUrl": "/assets/games/game-15.jpg",
       "hostName": "Таймураз Дзагоев",
       "codePrefix": "DJIGIT",
       "nextSequentialCode": "DJIGIT-001",
@@ -342,8 +328,7 @@
       "mapY": 66,
       "mythologyCreature": "Уастырджи (Небесный покровитель воинов)",
       "mythologyCulture": "Осетинский нартский эпос",
-      "mythologyDepiction": "взгляд и силуэт",
-      "mythologyDescription": "Акварельный эскиз: пламенный взгляд небесного всадника Уастырджи из-под шлема и силуэт крылатого белоснежного скакуна, на лету забрасывающего золоченое кольцо на горный пик."
+      "mythologyDescription": "Пламенный взор небесного всадника Уастырджи из-под шлема и силуэт крылатого белоснежного скакуна направляют золоченое кольцо точно на вершину горного пика."
     },
     {
       "id": "game-16",
@@ -357,7 +342,7 @@
       "location": "Бурятский сектор, 12х12м",
       "status": "active",
       "category": "Подвижные игры",
-      "imageUrl": "/assets/mythology/game-16-buryat-modon-eyes.jpg",
+      "imageUrl": "/assets/games/game-16.jpg",
       "hostName": "Баир Доржиев",
       "codePrefix": "MODON",
       "nextSequentialCode": "MODON-001",
@@ -365,8 +350,7 @@
       "mapY": 78,
       "mythologyCreature": "Сагаан Убгэн (Белый Старец / Дух тайги)",
       "mythologyCulture": "Бурятская мифология",
-      "mythologyDepiction": "взгляд и силуэт",
-      "mythologyDescription": "Акварельный эскиз: из кедровых веток выглядывают лукавые мудрые глаза таёжного духа, а покрытая мхом когтистая лапа осторожно прячет священный белый брусок «модон» в шелковистую траву."
+      "mythologyDescription": "Из кедровых веток выглядывают лукавые мудрые глаза таёжного Белого Старца Сагаан Убгэна, а покрытая мхом лапа осторожно прячет священный белый брусок «модон» в шелковистую траву."
     },
     {
       "id": "game-17",
@@ -380,7 +364,7 @@
       "location": "Круг ловкости, 5х5м",
       "status": "active",
       "category": "Ловкость и меткость",
-      "imageUrl": "/assets/mythology/game-17-tuva-tevek-arzylan.jpg",
+      "imageUrl": "/assets/games/game-17.jpg",
       "hostName": "Чингиз Монгуш",
       "codePrefix": "TUVA",
       "nextSequentialCode": "TUVA-001",
@@ -388,8 +372,7 @@
       "mapY": 76,
       "mythologyCreature": "Арзылан (Мифический снежный лев Тувы)",
       "mythologyCulture": "Тувинский фольклор",
-      "mythologyDepiction": "в полный рост",
-      "mythologyDescription": "Акварельный эскиз: грациозный снежный лев Арзылан балансирует на одной задней лапе на вершине хребта Танну-Ола, виртуозно подбивая когтем пернатый войлочный мяч-тевек в лазурном небе."
+      "mythologyDescription": "Грациозный снежный лев Арзылан балансирует на вершине хребта Танну-Ола, виртуозно подбивая когтем пернатый войлочный мяч-тевек в лазурном небе Саян."
     },
     {
       "id": "game-18",
@@ -403,7 +386,7 @@
       "location": "Калмыцкая юрта, 6х6м",
       "status": "active",
       "category": "Подвижные игры",
-      "imageUrl": "/assets/mythology/game-18-kalmyk-dragons-pillow.jpg",
+      "imageUrl": "/assets/games/game-18.jpg",
       "hostName": "Санал Бадмаев",
       "codePrefix": "BOYPOD",
       "nextSequentialCode": "BOYPOD-001",
@@ -411,8 +394,7 @@
       "mapY": 74,
       "mythologyCreature": "Драконы Лу (Крылатые духи степных ветров)",
       "mythologyCulture": "Калмыцкий эпос Джангар",
-      "mythologyDepiction": "в полный рост",
-      "mythologyDescription": "Акварельный эскиз: два задорных степных дракона Лу с длинными усами балансируют на одной когтистой лапе в очерченном круге, шуточно сражаясь расшитыми шелковыми подушками."
+      "mythologyDescription": "Два задорных степных дракона Лу с длинными усами балансируют на одной когтистой лапе в очерченном круге, шуточно сражаясь расшитыми шелковыми подушками."
     },
     {
       "id": "game-19",
@@ -426,7 +408,7 @@
       "location": "Карельский городошный корт, 10х6м",
       "status": "active",
       "category": "Ловкость и меткость",
-      "imageUrl": "/assets/mythology/game-19-karelia-tapio-kyukka.jpg",
+      "imageUrl": "/assets/games/game-19.jpg",
       "hostName": "Юрий Медведев",
       "codePrefix": "KYUKK",
       "nextSequentialCode": "KYUKK-001",
@@ -434,8 +416,7 @@
       "mapY": 76,
       "mythologyCreature": "Тапио (Лесной владыка карельских пущ)",
       "mythologyCulture": "Карело-финский эпос Калевала",
-      "mythologyDepiction": "только лапы и руки",
-      "mythologyDescription": "Акварельный эскиз: узловатая рука лесного хозяина Тапио, сплетенная из корней и сосновых ветвей, размашистым точным броском посылает тяжелую биту в чурки-кююккя на берегу озера."
+      "mythologyDescription": "Узловатая рука лесного хозяина Тапио, сплетенная из сосновых корней и ветвей, размашистым точным броском посылает тяжелую биту в чурки-кююккя на берегу озера."
     },
     {
       "id": "game-20",
@@ -449,7 +430,7 @@
       "location": "Русская застава, 10х10м",
       "status": "active",
       "category": "Командные",
-      "imageUrl": "/assets/mythology/game-20-russian-konyashki-polkan.jpg",
+      "imageUrl": "/assets/games/game-20.jpg",
       "hostName": "Дмитрий Морозов",
       "codePrefix": "KONYA",
       "nextSequentialCode": "KONYA-001",
@@ -457,8 +438,7 @@
       "mapY": 82,
       "mythologyCreature": "Полкан (Сказочный богатырь-кентавр)",
       "mythologyCulture": "Русские народные сказки",
-      "mythologyDepiction": "в полный рост",
-      "mythologyDescription": "Акварельный эскиз: могучий и добродушный богатырь-кентавр Полкан с веселыми глазами везет на своих широких плечах румяного лесовичка в задорной праздничной игре «коняшки» среди ромашек."
+      "mythologyDescription": "Могучий и добродушный богатырь-кентавр Полкан с веселыми глазами везет на своих широких плечах румяного лесовичка в задорной праздничной игре «коняшки» среди ромашек."
     },
     {
       "id": "game-21",
@@ -472,7 +452,7 @@
       "location": "Терем интеллектуальных игр",
       "status": "active",
       "category": "Интеллектуальные",
-      "imageUrl": "/assets/mythology/game-21-russian-tavreli-bayun.jpg",
+      "imageUrl": "/assets/games/game-21.jpg",
       "hostName": "Ярослав Романов",
       "codePrefix": "TAVR",
       "nextSequentialCode": "TAVR-001",
@@ -480,8 +460,7 @@
       "mapY": 90,
       "mythologyCreature": "Кот Баюн (Вещий сказитель Лукоморья)",
       "mythologyCulture": "Славянский фольклор",
-      "mythologyDepiction": "в полный рост",
-      "mythologyDescription": "Акварельный эскиз: сказочный ученый Кот Баюн в золотом узорном кафтане у векового дуба неторопливо ставит фигуру ратника на шахматную башню старинных русских таврелей."
+      "mythologyDescription": "Сказочный ученый Кот Баюн в золотом узорном кафтане у векового дуба Лукоморья неторопливо ставит фигуру ратника на шахматную башню старинных русских таврелей."
     },
     {
       "id": "game-22",
@@ -495,7 +474,7 @@
       "location": "Терем ремёсел, стол №3",
       "status": "active",
       "category": "Ловкость и меткость",
-      "imageUrl": "/assets/mythology/game-22-russian-kameshki-copper.jpg",
+      "imageUrl": "/assets/games/game-22.jpg",
       "hostName": "Екатерина Васильева",
       "codePrefix": "KAMRUS",
       "nextSequentialCode": "KAMRUS-001",
@@ -503,8 +482,7 @@
       "mapY": 88,
       "mythologyCreature": "Хозяйка Медной горы (Малахитница)",
       "mythologyCulture": "Уральские сказы и славянский эпос",
-      "mythologyDepiction": "только лапы и руки",
-      "mythologyDescription": "Акварельный эскиз: тонкая аристократичная рука Хозяйки Медной горы с кольцами из уральского малахита виртуозно ловит на лету самоцветные гладкие камешки над вышитым полотном."
+      "mythologyDescription": "Тонкая аристократичная рука Хозяйки Медной горы с кольцами из уральского малахита виртуозно ловит на лету самоцветные гладкие камешки над вышитым полотном."
     }
   ],
   "codes": [
@@ -88521,15 +88499,15 @@
     }
   ],
   "completions": [],
-  "mapBackgroundUrl": "",
+  "mapBackgroundUrl": "/assets/festival-cards-map.jpg",
   "circleSettings": {
     "enabled": true,
-    "title": "Главная площадь",
-    "subtitle": "Фестивальный круг",
-    "x": 50,
-    "y": 50,
+    "title": "СПОРТ ТОЧКА",
+    "subtitle": "КРУГ",
+    "x": 62,
+    "y": 30,
     "outerRadius": 90,
-    "innerRadius": 35,
+    "innerRadius": 20,
     "showSectors": true,
     "sector1Label": "Сектор 1: Интеллект и Шахматы",
     "sector2Label": "Сектор 2: Северные состязания",
@@ -88537,5 +88515,5 @@
     "sector4Label": "Сектор 4: Сила и Меткость",
     "description": "Центральная площадь фестиваля, место общих сборов, хороводов и награждений"
   },
-  "updatedAt": "2026-09-15T07:25:40.231Z"
+  "updatedAt": "2026-09-15T07:31:41.400Z"
 }

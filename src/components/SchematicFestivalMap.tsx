@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { MapPin, CheckCircle2, ChevronRight, Move, Sparkles, Navigation, Info, Check, Compass } from 'lucide-react';
-import { Game, MapCircleSettings, DEFAULT_MAP_CIRCLE_SETTINGS } from '../types';
+import { Game, MapCircleSettings, DEFAULT_MAP_CIRCLE_SETTINGS, DEFAULT_GAME_CARD_IMAGE } from '../types';
 
 interface SchematicFestivalMapProps {
   games: Game[];
@@ -652,13 +652,15 @@ export const SchematicFestivalMap: React.FC<SchematicFestivalMapProps> = ({
       <div className="p-4 bg-white flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs">
         {hoveredGame ? (
           <div className="flex items-center gap-3">
-            {hoveredGame.imageUrl && (
-              <img
-                src={hoveredGame.imageUrl}
-                alt={hoveredGame.name}
-                className="w-12 h-12 rounded-xl object-cover border border-gray-200 shrink-0"
-              />
-            )}
+            <img
+              src={hoveredGame.imageUrl || DEFAULT_GAME_CARD_IMAGE}
+              alt={hoveredGame.name}
+              className="w-12 h-12 rounded-xl object-cover border border-gray-200 shrink-0"
+              referrerPolicy="no-referrer"
+              onError={(e) => {
+                (e.target as HTMLImageElement).src = DEFAULT_GAME_CARD_IMAGE;
+              }}
+            />
             <div>
               <div className="flex items-center gap-2">
                 <span className="font-bold text-gray-900 text-sm">

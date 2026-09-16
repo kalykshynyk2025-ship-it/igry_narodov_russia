@@ -30,8 +30,26 @@ export interface Game {
   mapY?: number; // 0 to 100 percentage
   mythologyCreature?: string;
   mythologyCulture?: string;
-  mythologyDepiction?: 'в полный рост' | 'только лапы и руки' | 'взгляд и силуэт';
   mythologyDescription?: string;
+}
+
+export function cleanProhibitedPhrases(text: string | undefined | null): string {
+  if (!text) return '';
+  return text
+    .replace(/«?\s*акварельный\s+эскиз:?\s*/gi, '')
+    .replace(/и\s+акварельный\s+эскиз\s*/gi, '')
+    .replace(/акварельный\s+эскиз\s*/gi, '')
+    .replace(/персонаж:?\s*/gi, '')
+    .replace(/ракурс:?\s*/gi, '')
+    .replace(/только\s+лапы\s+и\s+руки/gi, '')
+    .replace(/в\s+полный\s+рост/gi, '')
+    .replace(/полный\s+рост/gi, '')
+    .replace(/взгляд\s+и\s+силуэт/gi, '')
+    .replace(/gemini/gi, '')
+    .replace(/ai\s*studio/gi, '')
+    .replace(/«\s*»/g, '')
+    .replace(/\s{2,}/g, ' ')
+    .trim();
 }
 
 export interface Code {
@@ -95,6 +113,8 @@ export interface VerifyCodeResponse {
   };
   errorCode?: 'NOT_FOUND' | 'ALREADY_USED' | 'ALREADY_COMPLETED' | 'GAME_INACTIVE' | 'INVALID_PARTICIPANT';
 }
+
+export const DEFAULT_GAME_CARD_IMAGE = '/assets/festival-cards-map.jpg';
 
 export interface MapCircleSettings {
   enabled: boolean;
