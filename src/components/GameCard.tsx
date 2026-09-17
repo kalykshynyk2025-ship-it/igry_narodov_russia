@@ -86,9 +86,11 @@ export const GameCard: React.FC<GameCardProps> = ({ game, isCompleted, onSelect 
             {game.description || game.rules}
           </p>
 
-          {game.mythologyDescription && (
+          {(game.showMythology ?? Boolean(game.mythologyDescription)) && game.mythologyDescription && (
             <div className="mb-2.5 px-2.5 py-1.5 rounded-lg bg-amber-50/80 border border-amber-200/70 text-[11px] text-amber-950 flex items-center gap-1.5 truncate">
-              <span className="text-amber-700 font-bold shrink-0">🎨 Миф:</span>
+              <span className="text-amber-700 font-bold shrink-0">
+                {game.mythologyTitle ? `${cleanProhibitedPhrases(game.mythologyTitle)}:` : '🎨 Миф:'}
+              </span>
               <span className="truncate italic font-medium">{cleanProhibitedPhrases(game.mythologyDescription)}</span>
             </div>
           )}
@@ -101,6 +103,20 @@ export const GameCard: React.FC<GameCardProps> = ({ game, isCompleted, onSelect 
               <span className="text-gray-900 font-semibold truncate">{game.hostName}</span>
             </div>
           )}
+
+          {/* Reward badge */}
+          <div className="flex items-center gap-1.5 flex-wrap mb-2">
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-red-50 text-red-700 border border-red-200/80 font-bold text-[11px]">
+              <span>+{game.rewardPoints ?? 1}</span>
+              <span className="font-medium text-red-900">{game.rewardCurrency || 'балл'}</span>
+            </span>
+            {(game.showPhysicalReward ?? Boolean(game.physicalReward)) && game.physicalReward && (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-50 text-amber-900 border border-amber-200/80 font-medium text-[11px] truncate max-w-[190px]" title={game.physicalReward}>
+                <span>🎁</span>
+                <span className="truncate">{game.physicalReward}</span>
+              </span>
+            )}
+          </div>
         </div>
 
         {/* Footer meta row and CTA button */}
@@ -108,8 +124,8 @@ export const GameCard: React.FC<GameCardProps> = ({ game, isCompleted, onSelect 
           <div className="flex items-center gap-1.5 truncate max-w-[60%]">
             {game.location && (
               <span className="truncate flex items-center gap-1" title={game.location}>
-                <MapPin className="w-3 h-3 text-gray-400 shrink-0" />
-                <span className="truncate">{game.location.split(',')[0]}</span>
+                <MapPin className="w-3 h-3 text-red-500 shrink-0" />
+                <span className="truncate">{game.location}</span>
               </span>
             )}
           </div>

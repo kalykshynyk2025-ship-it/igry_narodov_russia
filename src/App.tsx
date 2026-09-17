@@ -28,9 +28,26 @@ export default function App() {
   const [circleSettings, setCircleSettings] = useState<MapCircleSettings>(DEFAULT_MAP_CIRCLE_SETTINGS);
 
   // View / Navigation State
-  const [isAdmin, setIsAdmin] = useState<boolean>(false);
+  const [isAdmin, setIsAdmin] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem('festival_admin_mode') === 'true' && api.isAdminLoggedIn();
+    } catch {
+      return false;
+    }
+  });
   const [isAdminLoginOpen, setIsAdminLoginOpen] = useState<boolean>(false);
   const [currentTab, setCurrentTab] = useState<TabType>('games');
+
+  const handleSetAdmin = (val: boolean) => {
+    setIsAdmin(val);
+    try {
+      if (val) {
+        localStorage.setItem('festival_admin_mode', 'true');
+      } else {
+        localStorage.removeItem('festival_admin_mode');
+      }
+    } catch {}
+  };
 
   // Modal States
   const [selectedGameForDetail, setSelectedGameForDetail] = useState<Game | null>(null);
@@ -58,14 +75,47 @@ export default function App() {
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
 
+    // Refresh games automatically every 15 seconds so participants always see latest admin updates
+    const pollTimer = setInterval(async () => {
+      try {
+        const refreshedGames = await api.getGames();
+        setGames(refreshedGames);
+      } catch {
+        // silent fallback
+      }
+    }, 15000);
+
+    const handleVisibilityChange = async () => {
+      if (document.visibilityState === 'visible') {
+        try {
+          const [refreshedGames, mapSettings] = await Promise.all([
+            api.getGames(),
+            api.getMapSettings()
+          ]);
+          setGames(refreshedGames);
+          if (mapSettings.mapBackgroundUrl) setMapBackgroundUrl(mapSettings.mapBackgroundUrl);
+        } catch {
+          // silent fallback
+        }
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('focus', handleVisibilityChange);
+
     return () => {
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
+      clearInterval(pollTimer);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('focus', handleVisibilityChange);
     };
   }, []);
 
-  const loadData = async () => {
-    setIsLoading(true);
+  const loadData = async (silent: boolean = false) => {
+    if (!silent) {
+      setIsLoading(true);
+    }
     try {
       const [fetchedGames, fetchedParticipants, mapSettings] = await Promise.all([
         api.getGames(),
@@ -85,6 +135,8 @@ export default function App() {
       // Check current participant from localStorage (both ID and data backup)
       const savedParticipantId = api.getCurrentParticipantId();
       const savedParticipantData = api.getCurrentParticipantData();
+      const currentAdminMode = localStorage.getItem('festival_admin_mode') === 'true';
+
       if (savedParticipantId) {
         let found = fetchedParticipants.find(p => p.id === savedParticipantId);
         // If not found in server list (e.g. cold start / server restart), auto re-sync from backup!
@@ -100,18 +152,20 @@ export default function App() {
         if (found) {
           setCurrentParticipant(found);
           api.setCurrentParticipant(found);
-        } else {
+        } else if (!isAdmin && !currentAdminMode) {
           // If previous ID cannot be resolved, prompt login/registration
           setIsAuthModalOpen(true);
         }
-      } else {
-        // Prompt visitor to log in or register
+      } else if (!isAdmin && !currentAdminMode) {
+        // Prompt visitor to log in or register only if not in admin dashboard
         setIsAuthModalOpen(true);
       }
     } catch (err) {
       console.error('Failed to load data:', err);
     } finally {
-      setIsLoading(false);
+      if (!silent) {
+        setIsLoading(false);
+      }
     }
   };
 
@@ -146,10 +200,10 @@ export default function App() {
   // Toggle Admin flow with password modal
   const handleToggleAdmin = () => {
     if (isAdmin) {
-      setIsAdmin(false);
+      handleSetAdmin(false);
     } else {
       if (api.isAdminLoggedIn()) {
-        setIsAdmin(true);
+        handleSetAdmin(true);
       } else {
         setIsAdminLoginOpen(true);
       }
@@ -292,8 +346,8 @@ export default function App() {
           <AdminDashboard
             games={games}
             participants={participants}
-            onRefreshData={loadData}
-            onCloseAdmin={() => setIsAdmin(false)}
+            onRefreshData={() => loadData(true)}
+            onCloseAdmin={() => handleSetAdmin(false)}
             mapBackgroundUrl={mapBackgroundUrl}
             onUpdateMapBackground={(url) => setMapBackgroundUrl(url)}
             circleSettings={circleSettings}
@@ -669,7 +723,7 @@ export default function App() {
         participants={participants}
         totalGamesCount={games.length}
         onAdminSuccess={() => {
-          setIsAdmin(true);
+          handleSetAdmin(true);
           setIsAuthModalOpen(false);
         }}
       />
@@ -678,7 +732,7 @@ export default function App() {
       <AdminLoginModal
         isOpen={isAdminLoginOpen}
         onClose={() => setIsAdminLoginOpen(false)}
-        onSuccess={() => setIsAdmin(true)}
+        onSuccess={() => handleSetAdmin(true)}
       />
     </div>
   );

@@ -37,7 +37,11 @@ import {
   QrCode,
   Wifi,
   Printer,
-  Server
+  Server,
+  Gift,
+  Coins,
+  Trophy,
+  Award
 } from 'lucide-react';
 import { Game, Participant, Code, GameCompletion, AdminStats, MapCircleSettings, DEFAULT_MAP_CIRCLE_SETTINGS, DEFAULT_GAME_CARD_IMAGE, cleanProhibitedPhrases } from '../types';
 import { api } from '../services/api';
@@ -212,6 +216,38 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     }
   };
 
+  const [isClaimingReward, setIsClaimingReward] = useState(false);
+
+  const handleClaimReward = async (participantId: string, gameId: string, rewardName?: string) => {
+    setIsClaimingReward(true);
+    const res = await api.claimReward(participantId, gameId, rewardName, 'Администратор');
+    setIsClaimingReward(false);
+    if (res.success && res.participant) {
+      if (selectedParticipantHistory && selectedParticipantHistory.participant.id === participantId) {
+        setSelectedParticipantHistory({
+          ...selectedParticipantHistory,
+          participant: res.participant
+        });
+      }
+      await onRefreshData();
+    }
+  };
+
+  const handleUnclaimReward = async (participantId: string, gameId: string) => {
+    setIsClaimingReward(true);
+    const res = await api.unclaimReward(participantId, gameId);
+    setIsClaimingReward(false);
+    if (res.success && res.participant) {
+      if (selectedParticipantHistory && selectedParticipantHistory.participant.id === participantId) {
+        setSelectedParticipantHistory({
+          ...selectedParticipantHistory,
+          participant: res.participant
+        });
+      }
+      await onRefreshData();
+    }
+  };
+
   const handleViewParticipantHistory = async (participant: Participant) => {
     const history = await api.getParticipantHistory(participant.id);
     setSelectedParticipantHistory({ participant, history });
@@ -249,14 +285,31 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       imageUrl: DEFAULT_GAME_CARD_IMAGE,
       mapX: 50,
       mapY: 50,
-      status: 'active'
+      status: 'active',
+      mythologyTitle: 'Мифология и сказания',
+      showMythology: true,
+      mythologyCulture: '',
+      mythologyCreature: '',
+      mythologyDescription: '',
+      rewardPoints: 1,
+      rewardCurrency: 'балл в маршрутник',
+      physicalReward: '',
+      showPhysicalReward: false
     });
     setIsFormOpen(true);
   };
 
   const handleOpenEditGame = (game: Game) => {
     setEditingGame(game);
-    setGameFormData({ ...game });
+    setGameFormData({
+      ...game,
+      mythologyTitle: game.mythologyTitle || 'Мифология и сказания',
+      showMythology: game.showMythology ?? Boolean(game.mythologyDescription),
+      rewardPoints: game.rewardPoints ?? 1,
+      rewardCurrency: game.rewardCurrency || 'балл в маршрутник',
+      physicalReward: game.physicalReward || '',
+      showPhysicalReward: game.showPhysicalReward ?? Boolean(game.physicalReward)
+    });
     setIsFormOpen(true);
   };
 
@@ -272,14 +325,33 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     e.preventDefault();
     if (!gameFormData.name?.trim()) return;
 
+    const sanitizedPrefix = (gameFormData.codePrefix || 'GAME')
+      .toUpperCase()
+      .trim()
+      .replace(/[^A-Z0-9А-ЯЁ\-]/gi, '') || 'GAME';
+
+    const preparedData = {
+      ...gameFormData,
+      codePrefix: sanitizedPrefix,
+      mythologyTitle: gameFormData.mythologyTitle?.trim() || 'Мифология и сказания',
+      showMythology: gameFormData.showMythology ?? true,
+      mythologyCulture: gameFormData.mythologyCulture || '',
+      mythologyCreature: gameFormData.mythologyCreature || '',
+      mythologyDescription: gameFormData.mythologyDescription || '',
+      rewardPoints: Number(gameFormData.rewardPoints) || 1,
+      rewardCurrency: gameFormData.rewardCurrency?.trim() || 'балл в маршрутник',
+      physicalReward: gameFormData.physicalReward?.trim() || '',
+      showPhysicalReward: gameFormData.showPhysicalReward ?? Boolean(gameFormData.physicalReward?.trim())
+    };
+
     if (editingGame) {
-      await api.updateGame(editingGame.id, gameFormData);
+      await api.updateGame(editingGame.id, preparedData);
     } else {
       await api.createGame({
         name: gameFormData.name.trim(),
         people: gameFormData.people || 'Русские',
         hostName: gameFormData.hostName || 'Ведущий',
-        codePrefix: (gameFormData.codePrefix || 'GAME').toUpperCase().trim(),
+        codePrefix: sanitizedPrefix,
         description: gameFormData.description || '',
         rules: gameFormData.rules || '',
         participants: gameFormData.participants || 'Любое количество',
@@ -288,7 +360,16 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         imageUrl: gameFormData.imageUrl || DEFAULT_GAME_CARD_IMAGE,
         mapX: Number(gameFormData.mapX) || 50,
         mapY: Number(gameFormData.mapY) || 50,
-        status: gameFormData.status || 'active'
+        status: gameFormData.status || 'active',
+        mythologyTitle: gameFormData.mythologyTitle?.trim() || 'Мифология и сказания',
+        showMythology: gameFormData.showMythology ?? true,
+        mythologyCulture: gameFormData.mythologyCulture || '',
+        mythologyCreature: gameFormData.mythologyCreature || '',
+        mythologyDescription: gameFormData.mythologyDescription || '',
+        rewardPoints: Number(gameFormData.rewardPoints) || 1,
+        rewardCurrency: gameFormData.rewardCurrency?.trim() || 'балл в маршрутник',
+        physicalReward: gameFormData.physicalReward?.trim() || '',
+        showPhysicalReward: gameFormData.showPhysicalReward ?? Boolean(gameFormData.physicalReward?.trim())
       });
     }
 
@@ -297,6 +378,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     setGameFormData({});
     await onRefreshData();
     await loadStats();
+    await loadCodes(selectedGameForCodes || undefined);
   };
 
   const handleUpdateCoordinates = async (gameId: string, mapX: number, mapY: number) => {
@@ -587,6 +669,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   </div>
 
                   <div className="flex items-center justify-between">
+                    <span className="text-gray-500 font-medium">📍 Место / Ориентир:</span>
+                    <span className="font-semibold text-amber-900 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200/70 truncate max-w-[170px]" title={game.location}>
+                      {game.location || 'Поляна фестиваля'}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center justify-between">
                     <span className="text-gray-500 font-medium">Текущий код в очереди:</span>
                     <span className="font-mono font-bold text-red-600">
                       {game.nextSequentialCode || `${game.codePrefix}-001`}
@@ -600,11 +689,64 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     </span>
                   </div>
 
-                  {game.mythologyDescription && (
-                    <div className="flex items-center text-[11px] bg-amber-50/70 px-2.5 py-1 rounded-md border border-amber-200/60">
-                      <span className="text-amber-900 italic line-clamp-1">🎨 {cleanProhibitedPhrases(game.mythologyDescription)}</span>
+                  {/* Mythology / Custom block indicator & quick toggle */}
+                  <div className="flex items-center justify-between text-xs bg-amber-50/70 p-2 rounded-xl border border-amber-200/70">
+                    <div className="flex items-center gap-1.5 min-w-0 pr-1">
+                      <Sparkles className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-1.5">
+                          <span className="font-bold text-amber-950 text-[11px] truncate max-w-[120px]">
+                            {game.mythologyTitle?.trim() || 'Мифология'}:
+                          </span>
+                          <span className={`text-[10px] px-1.5 py-0.5 rounded font-semibold ${
+                            (game.showMythology ?? Boolean(game.mythologyDescription))
+                              ? 'bg-green-100 text-green-800 border border-green-200'
+                              : 'bg-gray-100 text-gray-500 border border-gray-200'
+                          }`}>
+                            {(game.showMythology ?? Boolean(game.mythologyDescription)) ? 'Включена' : 'Отключена'}
+                          </span>
+                        </div>
+                        {game.mythologyDescription && (
+                          <p className="text-[10px] text-amber-900/90 italic truncate max-w-[190px]">
+                            {game.mythologyCulture ? `${game.mythologyCulture}: ` : ''}{cleanProhibitedPhrases(game.mythologyDescription)}
+                          </p>
+                        )}
+                      </div>
                     </div>
-                  )}
+                    <button
+                      type="button"
+                      onClick={async (e) => {
+                        e.stopPropagation();
+                        const currentVal = game.showMythology ?? Boolean(game.mythologyDescription);
+                        await api.updateGame(game.id, { showMythology: !currentVal });
+                        await onRefreshData();
+                      }}
+                      className={`text-[10px] font-bold px-2 py-1 rounded-lg border transition-colors cursor-pointer shrink-0 ${
+                        (game.showMythology ?? Boolean(game.mythologyDescription))
+                          ? 'bg-white text-amber-900 border-amber-300 hover:bg-amber-100'
+                          : 'bg-amber-600 text-white border-amber-700 hover:bg-amber-700'
+                      }`}
+                      title={`Быстро включить или выключить показ блока «${game.mythologyTitle || 'Мифология'}»`}
+                    >
+                      {(game.showMythology ?? Boolean(game.mythologyDescription)) ? 'Отключить' : 'Включить'}
+                    </button>
+                  </div>
+
+                  {/* Reward badge */}
+                  <div className="flex items-center justify-between text-xs py-1.5 px-2.5 rounded-xl bg-gray-50 border border-gray-200">
+                    <div className="flex items-center gap-1.5 font-bold text-gray-800">
+                      <Trophy className="w-3.5 h-3.5 text-red-600 shrink-0" />
+                      <span>+{game.rewardPoints ?? 1}</span>
+                      <span className="font-medium text-gray-600 truncate max-w-[120px]">{game.rewardCurrency || 'балл'}</span>
+                    </div>
+                    {(game.showPhysicalReward ?? Boolean(game.physicalReward)) && game.physicalReward ? (
+                      <span className="text-[10px] font-bold text-amber-950 bg-amber-100/90 px-2 py-0.5 rounded-md border border-amber-300 truncate max-w-[160px]" title={game.physicalReward}>
+                        🎁 {game.physicalReward}
+                      </span>
+                    ) : (
+                      <span className="text-[10px] text-gray-400">Без подарка</span>
+                    )}
+                  </div>
 
                   <p className="text-gray-500 line-clamp-2 pt-1 border-t border-gray-100">
                     {game.description || game.rules}
@@ -1793,13 +1935,23 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   const total = games.length;
                   const percent = total > 0 ? Math.round((completedCount / total) * 100) : 0;
 
+                  const participantGames = games.filter(g => p.completedGames.includes(g.id));
+                  const earnedPoints = participantGames.reduce((sum, g) => sum + (g.rewardPoints ?? 1), 0);
+                  const sampleCurrency = games.find(g => g.rewardCurrency?.trim())?.rewardCurrency?.trim() || 'б.';
+
+                  const physicalGames = participantGames.filter(
+                    g => (g.showPhysicalReward ?? Boolean(g.physicalReward)) && g.physicalReward
+                  );
+                  const claimedCount = Object.keys(p.claimedRewards || {}).length;
+                  const unclaimedCount = physicalGames.filter(g => !p.claimedRewards?.[g.id]).length;
+
                   return (
                     <div
                       key={p.id}
-                      className="p-4 flex items-center justify-between text-xs hover:bg-gray-50/80 transition-colors"
+                      className="p-4 flex flex-col sm:flex-row sm:items-center justify-between text-xs hover:bg-gray-50/80 transition-colors gap-3"
                     >
                       <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-full bg-red-600 text-white font-bold text-xs flex items-center justify-center">
+                        <div className="w-8 h-8 rounded-full bg-red-600 text-white font-bold text-xs flex items-center justify-center shrink-0">
                           {p.name.charAt(0)}
                         </div>
                         <div>
@@ -1810,7 +1962,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                         </div>
                       </div>
 
-                      <div className="hidden sm:block text-gray-600">
+                      <div className="text-gray-600">
                         {p.email && (
                           <div className="text-gray-900 font-medium text-xs truncate max-w-[170px]">
                             {p.email}
@@ -1824,18 +1976,40 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                         )}
                       </div>
 
-                      <div>
-                        <span className="px-2.5 py-1 rounded-full bg-red-50 text-red-600 font-bold border border-red-200 text-xs">
-                          {completedCount} / {total} ({percent}%)
-                        </span>
+                      <div className="flex flex-col gap-1">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className="px-2.5 py-0.5 rounded-full bg-red-50 text-red-600 font-bold border border-red-200 text-xs">
+                            {completedCount} / {total} ({percent}%)
+                          </span>
+                          <span className="px-2 py-0.5 rounded-full bg-amber-50 text-amber-900 font-bold border border-amber-200 text-xs">
+                            ⭐ {earnedPoints} {sampleCurrency}
+                          </span>
+                        </div>
+                        {physicalGames.length > 0 && (
+                          <div>
+                            {unclaimedCount > 0 ? (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-100 text-amber-950 text-[10px] font-bold border border-amber-300">
+                                <span>🎁</span>
+                                <span>{unclaimedCount} к выдаче</span>
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-800 text-[10px] font-bold border border-emerald-200">
+                                <span>✓</span>
+                                <span>Все призы выданы ({claimedCount})</span>
+                              </span>
+                            )}
+                          </div>
+                        )}
                       </div>
 
-                      <div className="flex items-center gap-1.5">
+                      <div className="flex items-center gap-1.5 self-end sm:self-center">
                         <button
                           onClick={() => handleViewParticipantHistory(p)}
-                          className="px-3 py-1.5 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-800 font-semibold text-xs transition-colors cursor-pointer"
+                          className="px-3 py-1.5 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-800 font-semibold text-xs transition-colors cursor-pointer flex items-center gap-1.5"
+                          title="Посмотреть маршрут и выдать призы"
                         >
-                          История
+                          <Gift className="w-3.5 h-3.5 text-amber-600" />
+                          <span>Призы / Маршрут</span>
                         </button>
                         <button
                           onClick={() => setParticipantToDelete(p)}
@@ -1905,7 +2079,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   </h3>
                 </div>
                 <p className="text-xs text-gray-600 mt-1 max-w-xl leading-relaxed">
-                  Переезжаете на другую локацию? Сохраните текущую базу участников в файлы JSON или CSV для отчетов, после чего сбросьте результаты всех игр и коды в исходное состояние под специальным паролем.
+                  Переезжаете на другую локацию или запускаете новый поток? Сохраните базу участников в файлы JSON или CSV, после чего выберите нужный режим сброса (полный, только прогресс или только участников) под специальным паролем.
                 </p>
               </div>
             </div>
@@ -2002,15 +2176,60 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   />
                 </div>
                 <div>
-                  <label className="block font-bold text-gray-700 mb-1">Префикс кодов (для очереди)</label>
+                  <label className="block font-bold text-gray-700 mb-1">Кодовое слово / Префикс кодов</label>
                   <input
                     type="text"
                     value={gameFormData.codePrefix || ''}
                     onChange={(e) => setGameFormData({ ...gameFormData, codePrefix: e.target.value.toUpperCase() })}
-                    placeholder="Например: GOROD"
+                    placeholder="Например: ШАТРА или ALTAI"
                     className="w-full h-10 px-3 rounded-xl bg-gray-50 border border-gray-300 font-mono uppercase text-xs text-gray-900 focus:outline-none focus:border-red-600"
                   />
+                  <p className="text-[10px] text-gray-500 mt-1 leading-tight">
+                    Игроки должны вводить проверочный код с номером очереди (например, ШАТРА-001 или ALTIY-002). При смене кодового слова все неиспользованные коды точки автоматически обновятся с сохранением номеров.
+                  </p>
                 </div>
+              </div>
+
+              {/* Location / Landmark Field */}
+              <div className="bg-amber-50/70 border border-amber-200/80 rounded-xl p-3">
+                <label className="block font-bold text-amber-950 text-xs mb-1">
+                  📍 Место проведения / Ориентир игровой точки
+                </label>
+                <input
+                  type="text"
+                  value={gameFormData.location || ''}
+                  onChange={(e) => setGameFormData({ ...gameFormData, location: e.target.value })}
+                  placeholder="Например: Огороженная площадка, Игровая площадка, Центральная поляна"
+                  className="w-full h-10 px-3 rounded-xl bg-white border border-amber-300 text-xs text-gray-900 focus:outline-none focus:border-amber-600 focus:ring-1 focus:ring-amber-500 font-medium"
+                />
+                <div className="mt-2 flex flex-wrap gap-1.5 items-center">
+                  <span className="text-[10px] text-amber-800 font-semibold mr-1">Быстрый выбор:</span>
+                  {[
+                    'Огороженная площадка',
+                    'Игровая площадка',
+                    'Центральная поляна',
+                    'Северная поляна',
+                    'Этно-юрта',
+                    'Павильон ремёсел',
+                    'Силовая зона'
+                  ].map((locOption) => (
+                    <button
+                      key={locOption}
+                      type="button"
+                      onClick={() => setGameFormData({ ...gameFormData, location: locOption })}
+                      className={`text-[10px] px-2 py-0.5 rounded-md font-medium border transition-colors ${
+                        gameFormData.location === locOption
+                          ? 'bg-amber-600 text-white border-amber-700 shadow-xs'
+                          : 'bg-white text-amber-900 border-amber-200 hover:bg-amber-100 hover:border-amber-300'
+                      }`}
+                    >
+                      {locOption}
+                    </button>
+                  ))}
+                </div>
+                <p className="text-[10px] text-amber-700/90 mt-1.5 leading-tight">
+                  Этот ориентир увидят игроки в карточке игры, на детальной странице и в подсказках карты фестиваля.
+                </p>
               </div>
 
               {/* Photo Uploader with Direct File Upload and Yandex Disk Resolver */}
@@ -2069,6 +2288,281 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 />
               </div>
 
+              {/* Mythology / Instructions / Rules Block Editor */}
+              <div className="bg-gradient-to-br from-amber-50 to-orange-50/40 border border-amber-200/90 rounded-2xl p-3.5 space-y-3 shadow-xs">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2">
+                    <Sparkles className="w-4 h-4 text-amber-700 shrink-0" />
+                    <div>
+                      <h4 className="font-bold text-xs text-amber-950">
+                        {gameFormData.mythologyTitle?.trim() || 'Мифология и сказания'}
+                      </h4>
+                      <p className="text-[10px] text-amber-800/80">
+                        Тематический блок (мифология, инструкция, правила или легенда)
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Toggle Checkbox */}
+                  <label className="inline-flex items-center gap-2 cursor-pointer select-none bg-white px-2.5 py-1.5 rounded-xl border border-amber-300/80 shadow-xs hover:bg-amber-50 transition-colors">
+                    <input
+                      type="checkbox"
+                      checked={gameFormData.showMythology ?? true}
+                      onChange={(e) => setGameFormData({ ...gameFormData, showMythology: e.target.checked })}
+                      className="w-4 h-4 text-amber-600 rounded border-gray-300 focus:ring-amber-500 cursor-pointer accent-amber-600"
+                    />
+                    <span className="text-xs font-bold text-amber-950">
+                      {(gameFormData.showMythology ?? true) ? 'Блок включён' : 'Блок отключён'}
+                    </span>
+                  </label>
+                </div>
+
+                {(gameFormData.showMythology ?? true) ? (
+                  <div className="space-y-3 pt-2 border-t border-amber-200/60">
+                    {/* Custom Block Title */}
+                    <div>
+                      <div className="flex items-center justify-between gap-1 mb-1">
+                        <label className="block font-bold text-amber-950 text-[11px]">
+                          Название блока (заголовок)
+                        </label>
+                        <span className="text-[10px] text-amber-700 font-medium">
+                          например: Инструкция, Правило, Мифология
+                        </span>
+                      </div>
+                      <input
+                        type="text"
+                        value={gameFormData.mythologyTitle ?? ''}
+                        onChange={(e) => setGameFormData({ ...gameFormData, mythologyTitle: e.target.value })}
+                        placeholder="Мифология и сказания"
+                        className="w-full h-9 px-3 rounded-xl bg-white border border-amber-300 text-xs text-gray-900 focus:outline-none focus:border-amber-600 focus:ring-1 focus:ring-amber-500 font-semibold"
+                      />
+                      {/* Fast Presets */}
+                      <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
+                        <span className="text-[10px] text-amber-800 font-medium">Быстрый выбор:</span>
+                        {[
+                          'Мифология и сказания',
+                          'Инструкция',
+                          'Правило',
+                          'Особые правила',
+                          'Легенда станции',
+                          'Памятка участнику'
+                        ].map((preset) => (
+                          <button
+                            key={preset}
+                            type="button"
+                            onClick={() => setGameFormData({ ...gameFormData, mythologyTitle: preset })}
+                            className={`px-2 py-0.5 rounded-md text-[10px] font-semibold border transition-colors cursor-pointer ${
+                              (gameFormData.mythologyTitle || 'Мифология и сказания') === preset
+                                ? 'bg-amber-700 text-white border-amber-800 shadow-2xs'
+                                : 'bg-white/90 text-amber-900 border-amber-300/80 hover:bg-amber-100'
+                            }`}
+                          >
+                            {preset}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block font-bold text-amber-950 text-[11px] mb-1">
+                        Подзаголовок / Культура / Раздел
+                      </label>
+                      <input
+                        type="text"
+                        value={gameFormData.mythologyCulture || ''}
+                        onChange={(e) => setGameFormData({ ...gameFormData, mythologyCulture: e.target.value })}
+                        placeholder="Например: Алтайская мифология или Важное указание"
+                        className="w-full h-9 px-3 rounded-xl bg-white border border-amber-300 text-xs text-gray-900 focus:outline-none focus:border-amber-600 focus:ring-1 focus:ring-amber-500 font-medium"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block font-bold text-amber-950 text-[11px] mb-1">
+                        Персонаж / Образ / Ориентир (необязательно)
+                      </label>
+                      <input
+                        type="text"
+                        value={gameFormData.mythologyCreature || ''}
+                        onChange={(e) => setGameFormData({ ...gameFormData, mythologyCreature: e.target.value })}
+                        placeholder="Например: Горный дух Алтая Ээзи или Совет от судьи"
+                        className="w-full h-9 px-3 rounded-xl bg-white border border-amber-300 text-xs text-gray-900 focus:outline-none focus:border-amber-600 focus:ring-1 focus:ring-amber-500 font-medium"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block font-bold text-amber-950 text-[11px] mb-1">
+                        Основной текст блока (содержание сказания, инструкции или правила)
+                      </label>
+                      <textarea
+                        rows={3}
+                        value={gameFormData.mythologyDescription || ''}
+                        onChange={(e) => setGameFormData({ ...gameFormData, mythologyDescription: e.target.value })}
+                        placeholder="Введите подробный текст..."
+                        className="w-full p-2.5 rounded-xl bg-white border border-amber-300 text-xs text-gray-900 focus:outline-none focus:border-amber-600 focus:ring-1 focus:ring-amber-500 italic leading-relaxed"
+                      />
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-[11px] text-amber-800/80 bg-white/70 p-2.5 rounded-xl border border-dashed border-amber-300">
+                    Блок «{gameFormData.mythologyTitle?.trim() || 'Мифология и сказания'}» выключен галочкой и не будет отображаться участникам фестиваля в карточке этой игры.
+                  </div>
+                )}
+              </div>
+
+              {/* REWARD CONFIGURATION BLOCK */}
+              <div className="rounded-2xl border border-rose-200 bg-rose-50/40 p-4 space-y-4">
+                <div className="flex items-center justify-between border-b border-rose-200/70 pb-2.5">
+                  <div className="flex items-center gap-2">
+                    <Trophy className="w-4 h-4 text-red-600" />
+                    <div>
+                      <h4 className="font-bold text-gray-900 text-xs">
+                        Награда за победу на станции
+                      </h4>
+                      <p className="text-[10px] text-gray-500">
+                        Баллы, валюта (коины, рубли) и физические призы / мерч
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {/* Points count */}
+                  <div>
+                    <label className="block font-bold text-gray-800 text-[11px] mb-1">
+                      Количество баллов / очков
+                    </label>
+                    <div className="flex items-center gap-1.5">
+                      <input
+                        type="number"
+                        min="0"
+                        max="1000"
+                        value={gameFormData.rewardPoints ?? 1}
+                        onChange={(e) => setGameFormData({ ...gameFormData, rewardPoints: Number(e.target.value) })}
+                        className="w-24 h-9 px-3 rounded-xl bg-white border border-gray-300 text-xs text-gray-900 font-bold focus:outline-none focus:border-red-500 focus:ring-1 focus:ring-red-500"
+                      />
+                      <div className="flex items-center gap-1">
+                        {[1, 2, 3, 5, 10].map((num) => (
+                          <button
+                            key={num}
+                            type="button"
+                            onClick={() => setGameFormData({ ...gameFormData, rewardPoints: num })}
+                            className={`px-2 py-1 rounded-lg text-[10px] font-bold border transition-colors cursor-pointer ${
+                              (gameFormData.rewardPoints ?? 1) === num
+                                ? 'bg-red-600 text-white border-red-700'
+                                : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-100'
+                            }`}
+                          >
+                            +{num}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Currency / points unit */}
+                  <div>
+                    <label className="block font-bold text-gray-800 text-[11px] mb-1">
+                      Обозначение единиц / валюты
+                    </label>
+                    <input
+                      type="text"
+                      value={gameFormData.rewardCurrency ?? 'балл в маршрутник'}
+                      onChange={(e) => setGameFormData({ ...gameFormData, rewardCurrency: e.target.value })}
+                      placeholder="балл в маршрутник, коинов, рублей, очков..."
+                      className="w-full h-9 px-3 rounded-xl bg-white border border-gray-300 text-xs text-gray-900 focus:outline-none focus:border-red-500 focus:ring-1 focus:ring-red-500 font-medium"
+                    />
+                    <div className="flex items-center gap-1 flex-wrap mt-1.5">
+                      {[
+                        'балл в маршрутник',
+                        'балл',
+                        'коинов',
+                        'рублей',
+                        'очков',
+                        'алтын',
+                        'монет'
+                      ].map((curr) => (
+                        <button
+                          key={curr}
+                          type="button"
+                          onClick={() => setGameFormData({ ...gameFormData, rewardCurrency: curr })}
+                          className={`px-1.5 py-0.5 rounded text-[9px] font-semibold border transition-colors cursor-pointer ${
+                            (gameFormData.rewardCurrency || 'балл в маршрутник') === curr
+                              ? 'bg-red-600 text-white border-red-700'
+                              : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-100'
+                          }`}
+                        >
+                          {curr}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Physical Prize / Merch section */}
+                <div className="pt-2 border-t border-rose-200/70 space-y-2.5">
+                  <label className="flex items-center gap-2 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={gameFormData.showPhysicalReward ?? Boolean(gameFormData.physicalReward)}
+                      onChange={(e) => setGameFormData({ ...gameFormData, showPhysicalReward: e.target.checked })}
+                      className="w-4 h-4 rounded text-red-600 focus:ring-red-500 border-gray-300 cursor-pointer"
+                    />
+                    <span className="font-bold text-gray-900 text-xs flex items-center gap-1.5">
+                      <Gift className="w-3.5 h-3.5 text-amber-600" />
+                      <span>Выдавать материальный приз / подарок / мерч за эту игру</span>
+                    </span>
+                  </label>
+
+                  {(gameFormData.showPhysicalReward ?? Boolean(gameFormData.physicalReward)) && (
+                    <div className="pl-6 space-y-2">
+                      <div>
+                        <label className="block font-bold text-gray-800 text-[11px] mb-1">
+                          Наименование приза или мерча
+                        </label>
+                        <input
+                          type="text"
+                          value={gameFormData.physicalReward || ''}
+                          onChange={(e) => setGameFormData({ ...gameFormData, physicalReward: e.target.value })}
+                          placeholder="Например: Памятный жетон, Сладкий приз, Наклейка..."
+                          className="w-full h-9 px-3 rounded-xl bg-white border border-amber-300 text-xs text-gray-900 focus:outline-none focus:border-amber-600 focus:ring-1 focus:ring-amber-500 font-medium"
+                        />
+                      </div>
+
+                      <div>
+                        <div className="text-[10px] text-gray-500 mb-1 font-medium">Быстрые варианты для фестиваля:</div>
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          {[
+                            'Памятный жетон',
+                            'Сладкий приз',
+                            'Наклейка',
+                            'Печать в бумажный буклет',
+                            'Мерч фестиваля',
+                            'На выбор (жетон / наклейка / приз)'
+                          ].map((preset) => (
+                            <button
+                              key={preset}
+                              type="button"
+                              onClick={() => setGameFormData({
+                                ...gameFormData,
+                                physicalReward: preset,
+                                showPhysicalReward: true
+                              })}
+                              className={`px-2 py-0.5 rounded-md text-[10px] font-semibold border transition-colors cursor-pointer ${
+                                (gameFormData.physicalReward || '') === preset
+                                  ? 'bg-amber-600 text-white border-amber-700 shadow-2xs'
+                                  : 'bg-white text-amber-900 border-amber-300/80 hover:bg-amber-100'
+                              }`}
+                            >
+                              {preset}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
               <button
                 type="submit"
                 id="save-game-point-submit-btn"
@@ -2110,49 +2604,197 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         </div>
       )}
 
-      {/* MODAL: PARTICIPANT HISTORY */}
-      {selectedParticipantHistory && (
-        <div className="fixed inset-0 z-50 bg-gray-950/75 flex items-center justify-center p-4">
-          <div className="bg-white w-full max-w-md rounded-3xl p-6 space-y-4 shadow-2xl border border-gray-200">
-            <div className="flex items-center justify-between border-b border-gray-100 pb-3">
-              <div>
-                <h3 className="font-bold text-base text-gray-900 font-serif">
-                  Маршрут участника: {selectedParticipantHistory.participant.name}
-                </h3>
-                <p className="text-xs text-gray-500">
-                  Пройдено {selectedParticipantHistory.participant.completedGames.length} точек
-                </p>
-              </div>
-              <button
-                onClick={() => setSelectedParticipantHistory(null)}
-                className="w-7 h-7 rounded-full bg-gray-100 text-gray-600 flex items-center justify-center"
-              >
-                ✕
-              </button>
-            </div>
+      {/* MODAL: PARTICIPANT HISTORY & REWARD ISSUANCE */}
+      {selectedParticipantHistory && (() => {
+        const p = selectedParticipantHistory.participant;
+        const participantGames = games.filter(g => p.completedGames.includes(g.id));
+        const totalPointsEarned = participantGames.reduce((sum, g) => sum + (g.rewardPoints ?? 1), 0);
+        const sampleCurr = games.find(g => g.rewardCurrency?.trim())?.rewardCurrency?.trim() || 'баллов';
 
-            <div className="space-y-2 max-h-80 overflow-y-auto">
-              {selectedParticipantHistory.history.length === 0 ? (
-                <div className="p-4 text-center text-xs text-gray-500">
-                  История прохождений пуста
-                </div>
-              ) : (
-                selectedParticipantHistory.history.map((h, i) => (
-                  <div key={h.id} className="p-3 rounded-xl bg-gray-50 border border-gray-200 text-xs flex justify-between items-center">
-                    <div>
-                      <div className="font-bold text-gray-900">{i + 1}. {h.gameName}</div>
-                      <div className="text-[10px] text-gray-400">Код: {h.codeString}</div>
-                    </div>
-                    <span className="text-[10px] font-mono text-gray-500">
-                      {new Date(h.completedAt).toLocaleTimeString('ru-RU')}
-                    </span>
+        // Games with physical rewards completed by participant
+        const physicalGames = participantGames.filter(
+          g => (g.showPhysicalReward ?? Boolean(g.physicalReward)) && g.physicalReward
+        );
+        const claimedCount = Object.keys(p.claimedRewards || {}).length;
+        const unclaimedGames = physicalGames.filter(g => !p.claimedRewards?.[g.id]);
+
+        return (
+          <div className="fixed inset-0 z-50 bg-gray-950/75 flex items-center justify-center p-4">
+            <div className="bg-white w-full max-w-lg rounded-3xl p-6 space-y-4 shadow-2xl border border-gray-200 max-h-[90vh] flex flex-col">
+              {/* Header */}
+              <div className="flex items-start justify-between border-b border-gray-100 pb-3 shrink-0">
+                <div>
+                  <h3 className="font-bold text-base text-gray-900 font-serif flex items-center gap-2">
+                    <span>Маршрут: {p.name}</span>
+                  </h3>
+                  <div className="flex items-center gap-2 text-xs text-gray-500 mt-0.5 flex-wrap">
+                    <span>ID: {p.id}</span>
+                    {p.phone && <span>• Тел: {p.phone}</span>}
+                    {p.cityOrTeam && <span className="text-red-600 font-medium">• {p.cityOrTeam}</span>}
                   </div>
-                ))
-              )}
+                </div>
+                <button
+                  onClick={() => setSelectedParticipantHistory(null)}
+                  className="w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-600 flex items-center justify-center transition-colors cursor-pointer shrink-0"
+                >
+                  ✕
+                </button>
+              </div>
+
+              {/* Stats overview banner */}
+              <div className="grid grid-cols-3 gap-2 shrink-0">
+                <div className="p-2.5 rounded-xl bg-gray-50 border border-gray-200 text-center">
+                  <div className="text-[10px] text-gray-500 font-medium">Пройдено станций</div>
+                  <div className="text-base font-bold text-red-600 mt-0.5">
+                    {p.completedGames.length} / {games.length}
+                  </div>
+                </div>
+                <div className="p-2.5 rounded-xl bg-amber-50/80 border border-amber-200 text-center">
+                  <div className="text-[10px] text-amber-800 font-medium">Набрано очков</div>
+                  <div className="text-base font-bold text-amber-900 mt-0.5">
+                    {totalPointsEarned} <span className="text-[10px] font-medium">{sampleCurr}</span>
+                  </div>
+                </div>
+                <div className="p-2.5 rounded-xl bg-rose-50 border border-rose-200 text-center">
+                  <div className="text-[10px] text-rose-800 font-medium">Призов к выдаче</div>
+                  <div className={`text-base font-bold mt-0.5 ${unclaimedGames.length > 0 ? 'text-rose-600 animate-pulse' : 'text-emerald-700'}`}>
+                    {unclaimedGames.length > 0 ? `${unclaimedGames.length} шт` : 'Все выданы ✓'}
+                  </div>
+                </div>
+              </div>
+
+              {/* Scrollable Content */}
+              <div className="space-y-4 overflow-y-auto flex-1 pr-1">
+                {/* Physical Rewards Section */}
+                {physicalGames.length > 0 && (
+                  <div className="rounded-2xl bg-amber-50/60 border border-amber-200/90 p-3.5 space-y-2.5">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-1.5 font-bold text-xs text-amber-950">
+                        <Gift className="w-4 h-4 text-amber-600" />
+                        <span>Материальные призы и мерч ({physicalGames.length})</span>
+                      </div>
+                      <span className="text-[10px] font-bold text-amber-900 bg-white px-2 py-0.5 rounded-md border border-amber-200">
+                        Выдано {claimedCount} из {physicalGames.length}
+                      </span>
+                    </div>
+
+                    <div className="space-y-2">
+                      {physicalGames.map((game) => {
+                        const claim = p.claimedRewards?.[game.id];
+                        const isClaimed = Boolean(claim);
+
+                        return (
+                          <div
+                            key={`reward-item-${game.id}`}
+                            className={`p-2.5 rounded-xl border flex items-center justify-between gap-3 text-xs transition-colors ${
+                              isClaimed
+                                ? 'bg-emerald-50/90 border-emerald-300/80 text-emerald-950'
+                                : 'bg-white border-amber-300/90 shadow-2xs'
+                            }`}
+                          >
+                            <div className="flex items-center gap-2 min-w-0">
+                              <div
+                                className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 ${
+                                  isClaimed ? 'bg-emerald-600 text-white' : 'bg-amber-500 text-white'
+                                }`}
+                              >
+                                {isClaimed ? <Check className="w-3.5 h-3.5" /> : <Gift className="w-3.5 h-3.5" />}
+                              </div>
+                              <div className="min-w-0">
+                                <div className="font-bold truncate flex items-center gap-1.5">
+                                  <span>{claim?.rewardName || game.physicalReward}</span>
+                                </div>
+                                <div className="text-[10px] text-gray-500 truncate">
+                                  Точка #{game.number}: {game.name}
+                                  {isClaimed && claim && (
+                                    <span className="text-emerald-700 font-medium ml-1">
+                                      • Выдано {claim.claimedAt} ({claim.claimedBy || 'Судья'})
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+
+                            <div className="shrink-0 flex items-center gap-1.5">
+                              {isClaimed ? (
+                                <button
+                                  type="button"
+                                  disabled={isClaimingReward}
+                                  onClick={() => handleUnclaimReward(p.id, game.id)}
+                                  className="px-2 py-1 rounded-lg bg-white hover:bg-red-50 text-gray-500 hover:text-red-600 border border-gray-200 text-[10px] font-semibold transition-colors cursor-pointer"
+                                  title="Отменить отметку о выдаче приза (если ошиблись)"
+                                >
+                                  Отменить
+                                </button>
+                              ) : (
+                                <button
+                                  type="button"
+                                  disabled={isClaimingReward}
+                                  onClick={() => handleClaimReward(p.id, game.id, game.physicalReward)}
+                                  className="px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs shadow-xs transition-colors cursor-pointer flex items-center gap-1"
+                                >
+                                  <Check className="w-3.5 h-3.5" />
+                                  <span>Отметить как выдан</span>
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* History list */}
+                <div>
+                  <h4 className="text-xs font-bold text-gray-700 mb-2 flex items-center gap-1.5">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-red-600" />
+                    <span>История подтверждённых точек</span>
+                  </h4>
+
+                  {selectedParticipantHistory.history.length === 0 ? (
+                    <div className="p-4 rounded-xl bg-gray-50 border border-dashed border-gray-200 text-center text-xs text-gray-500">
+                      История прохождений пуста
+                    </div>
+                  ) : (
+                    <div className="space-y-1.5">
+                      {selectedParticipantHistory.history.map((h, i) => {
+                        const matchingGame = games.find(g => g.id === h.gameId);
+                        const gamePoints = matchingGame?.rewardPoints ?? 1;
+                        const gameCurr = matchingGame?.rewardCurrency || 'балл';
+                        const hasPhysical = (matchingGame?.showPhysicalReward ?? Boolean(matchingGame?.physicalReward)) && matchingGame?.physicalReward;
+                        const isPhysClaimed = Boolean(p.claimedRewards?.[h.gameId]);
+
+                        return (
+                          <div key={h.id} className="p-2.5 rounded-xl bg-gray-50 border border-gray-200 text-xs flex justify-between items-center gap-2">
+                            <div className="min-w-0">
+                              <div className="font-bold text-gray-900 truncate">
+                                {i + 1}. {h.gameName}
+                              </div>
+                              <div className="flex items-center gap-2 text-[10px] text-gray-400 mt-0.5 flex-wrap">
+                                <span>Код: {h.codeString}</span>
+                                <span>• +{gamePoints} {gameCurr}</span>
+                                {hasPhysical && (
+                                  <span className={`font-semibold ${isPhysClaimed ? 'text-emerald-600' : 'text-amber-700'}`}>
+                                    • Приз: {matchingGame?.physicalReward} {isPhysClaimed ? '(выдан ✓)' : '(не выдан)'}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                            <span className="text-[10px] font-mono text-gray-500 shrink-0">
+                              {new Date(h.completedAt).toLocaleTimeString('ru-RU')}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
       {/* Delete Participant Modal */}
       {participantToDelete && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">

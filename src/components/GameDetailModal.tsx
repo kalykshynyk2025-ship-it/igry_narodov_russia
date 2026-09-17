@@ -95,24 +95,30 @@ export const GameDetailModal: React.FC<GameDetailModalProps> = ({
               </div>
             </div>
 
-            {/* Station Reward badge (secret host code is NOT shown to participant) */}
-            <div className="bg-white px-3.5 py-2 rounded-xl border border-gray-200 text-right w-full sm:w-auto">
-              <div className="text-[10px] uppercase tracking-wider text-gray-500 font-semibold">
-                Награда за победу
+            {/* Station Reward badge (customizable per station) */}
+            <div className="bg-white px-3.5 py-2 rounded-xl border border-gray-200 text-left sm:text-right w-full sm:w-auto space-y-0.5 shadow-2xs">
+              <div className="text-[10px] uppercase tracking-wider text-gray-500 font-semibold flex items-center sm:justify-end gap-1">
+                <span>Награда за победу</span>
               </div>
-              <div className="text-sm font-bold text-red-600">
-                +1 балл в маршрутник
+              <div className="text-sm font-bold text-red-600 flex items-center sm:justify-end gap-1.5 flex-wrap">
+                <span>+{game.rewardPoints ?? 1} {game.rewardCurrency || 'балл в маршрутник'}</span>
               </div>
+              {(game.showPhysicalReward ?? Boolean(game.physicalReward)) && game.physicalReward && (
+                <div className="inline-flex items-center gap-1 text-[11px] font-semibold text-amber-900 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200 mt-1">
+                  <span>🎁 Приз:</span>
+                  <span>{game.physicalReward}</span>
+                </div>
+              )}
             </div>
           </div>
 
-          {/* Mythological Description Section */}
-          {game.mythologyDescription && (
+          {/* Mythological / Custom Section (Mythology, Rules, Instructions, etc.) */}
+          {(game.showMythology ?? Boolean(game.mythologyDescription)) && game.mythologyDescription && (
             <div className="bg-gradient-to-br from-amber-50 to-orange-50/50 rounded-2xl p-4 border border-amber-200/80 shadow-xs mb-6">
               <div className="flex items-center justify-between gap-2 mb-2.5 flex-wrap">
                 <div className="flex items-center gap-2 text-amber-900 font-bold text-sm sm:text-base">
                   <Palette className="w-4 h-4 text-amber-700" />
-                  <span>Мифология и сказания</span>
+                  <span>{cleanProhibitedPhrases(game.mythologyTitle) || 'Мифология и сказания'}</span>
                 </div>
                 {game.mythologyCulture && (
                   <span className="px-2 py-0.5 rounded-md bg-amber-100/90 text-amber-900 text-[11px] font-medium border border-amber-300/60">
@@ -120,6 +126,17 @@ export const GameDetailModal: React.FC<GameDetailModalProps> = ({
                   </span>
                 )}
               </div>
+
+              {game.mythologyCreature && (
+                <div className="mb-2 text-xs font-semibold text-amber-900 flex items-center gap-1.5">
+                  <span className="text-amber-700 font-medium">
+                    {game.mythologyTitle && !game.mythologyTitle.toLowerCase().includes('мифолог') && !game.mythologyTitle.toLowerCase().includes('сказан')
+                      ? 'Ориентир / образ:'
+                      : 'Персонаж / образ:'}
+                  </span>
+                  <span>{cleanProhibitedPhrases(game.mythologyCreature)}</span>
+                </div>
+              )}
 
               <p className="text-amber-950/90 leading-relaxed text-xs sm:text-sm italic bg-white/70 p-3 rounded-xl border border-amber-200/50">
                 «{cleanProhibitedPhrases(game.mythologyDescription)}»

@@ -670,9 +670,16 @@ export const SchematicFestivalMap: React.FC<SchematicFestivalMapProps> = ({
                   {hoveredGame.people}
                 </span>
               </div>
-              <p className="text-gray-500 line-clamp-1 mt-0.5">
-                {hoveredGame.hostName ? `Ведущий: ${hoveredGame.hostName}` : hoveredGame.description}
-              </p>
+              <div className="flex flex-wrap items-center gap-2 mt-0.5">
+                {hoveredGame.location && (
+                  <span className="text-amber-900 font-medium bg-amber-50 px-1.5 py-0.5 rounded text-[11px] border border-amber-200/60">
+                    📍 {hoveredGame.location}
+                  </span>
+                )}
+                <span className="text-gray-500 line-clamp-1">
+                  {hoveredGame.hostName ? `Ведущий: ${hoveredGame.hostName}` : hoveredGame.description}
+                </span>
+              </div>
             </div>
           </div>
         ) : (

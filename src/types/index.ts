@@ -1,3 +1,12 @@
+export interface ClaimedRewardItem {
+  gameId: string;
+  gameNumber?: number;
+  gameName?: string;
+  rewardName: string;
+  claimedAt: string;
+  claimedBy?: string;
+}
+
 export interface Participant {
   id: string;
   name: string;
@@ -8,6 +17,8 @@ export interface Participant {
   createdAt: string;
   lastCompletedGame?: string;
   lastCompletedAt?: string;
+  totalScore?: number;
+  claimedRewards?: Record<string, ClaimedRewardItem>;
 }
 
 export interface Game {
@@ -28,9 +39,15 @@ export interface Game {
   nextSequentialCode?: string;
   mapX?: number; // 0 to 100 percentage
   mapY?: number; // 0 to 100 percentage
+  mythologyTitle?: string; // Custom header name (e.g. "Мифология и сказания", "Инструкция", "Правило")
   mythologyCreature?: string;
   mythologyCulture?: string;
   mythologyDescription?: string;
+  showMythology?: boolean;
+  rewardPoints?: number; // Number of points/units awarded (e.g. 1, 2, 5)
+  rewardCurrency?: string; // e.g. "балл в маршрутник", "балл", "рублей", "коинов", "очков", "монет"
+  physicalReward?: string; // e.g. "Памятный жетон", "Сладкий приз", "Наклейка", "Печать в бумажный буклет", "Мерч"
+  showPhysicalReward?: boolean;
 }
 
 export function cleanProhibitedPhrases(text: string | undefined | null): string {
@@ -111,7 +128,7 @@ export interface VerifyCodeResponse {
     totalCount: number;
     completedGames: string[];
   };
-  errorCode?: 'NOT_FOUND' | 'ALREADY_USED' | 'ALREADY_COMPLETED' | 'GAME_INACTIVE' | 'INVALID_PARTICIPANT';
+  errorCode?: 'NOT_FOUND' | 'ALREADY_USED' | 'ALREADY_COMPLETED' | 'GAME_INACTIVE' | 'INVALID_PARTICIPANT' | 'INCOMPLETE_CODE';
 }
 
 export const DEFAULT_GAME_CARD_IMAGE = '/assets/festival-cards-map.jpg';

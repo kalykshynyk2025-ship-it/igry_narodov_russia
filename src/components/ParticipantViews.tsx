@@ -1,6 +1,6 @@
 import React from 'react';
 import { Game, Participant } from '../types';
-import { CheckCircle2, Trophy, Award, ArrowRight, Shield, LogOut, MapPin, User, Phone, Mail } from 'lucide-react';
+import { CheckCircle2, Trophy, Award, ArrowRight, Shield, LogOut, MapPin, User, Phone, Mail, Gift, Coins, Sparkles } from 'lucide-react';
 
 interface ProgressViewProps {
   participant: Participant;
@@ -25,6 +25,16 @@ export const ProgressView: React.FC<ProgressViewProps> = ({
   const completedGamesList = games.filter(g => participant.completedGames.includes(g.id));
   const remainingGamesList = games.filter(g => !participant.completedGames.includes(g.id) && g.status === 'active');
 
+  // Calculate total score and find common currency
+  const totalScore = completedGamesList.reduce((acc, g) => acc + (g.rewardPoints ?? 1), 0);
+  const sampleGameWithCurrency = games.find(g => g.rewardCurrency?.trim());
+  const currencyUnit = sampleGameWithCurrency?.rewardCurrency?.trim() || 'баллов';
+
+  // Games that offer a physical prize / merch
+  const physicalRewardGames = completedGamesList.filter(
+    g => (g.showPhysicalReward ?? Boolean(g.physicalReward)) && g.physicalReward
+  );
+
   return (
     <div className="space-y-6 pb-8">
       {/* Header card */}
@@ -39,17 +49,22 @@ export const ProgressView: React.FC<ProgressViewProps> = ({
           </span>
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 my-4">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 my-4">
           <div className="p-3.5 rounded-2xl bg-gray-50 border border-gray-200 text-center">
             <div className="text-xs text-gray-500 font-medium">Пройдено точек</div>
             <div className="text-2xl font-bold text-red-600 mt-0.5">{completedCount}</div>
+          </div>
+          <div className="p-3.5 rounded-2xl bg-amber-50/80 border border-amber-200 text-center">
+            <div className="text-xs text-amber-800 font-medium">Набрано очков</div>
+            <div className="text-2xl font-bold text-amber-900 mt-0.5">{totalScore}</div>
+            <div className="text-[10px] text-amber-700 font-medium truncate">{currencyUnit}</div>
           </div>
           <div className="p-3.5 rounded-2xl bg-gray-50 border border-gray-200 text-center">
             <div className="text-xs text-gray-500 font-medium">Осталось точек</div>
             <div className="text-2xl font-bold text-gray-900 mt-0.5">{remainingGamesList.length}</div>
           </div>
-          <div className="p-3.5 rounded-2xl bg-gray-50 border border-gray-200 text-center col-span-2 sm:col-span-1">
-            <div className="text-xs text-gray-500 font-medium">Всего на фестивале</div>
+          <div className="p-3.5 rounded-2xl bg-gray-50 border border-gray-200 text-center">
+            <div className="text-xs text-gray-500 font-medium">Всего точек</div>
             <div className="text-2xl font-bold text-gray-800 mt-0.5">{totalCount}</div>
           </div>
         </div>
@@ -73,6 +88,90 @@ export const ProgressView: React.FC<ProgressViewProps> = ({
           </button>
         )}
       </div>
+
+      {/* Physical Rewards & Merch Section */}
+      {physicalRewardGames.length > 0 && (
+        <div className="rounded-3xl bg-white p-6 shadow-sm border border-gray-200">
+          <div className="flex items-center justify-between gap-2 mb-3">
+            <div className="flex items-center gap-2">
+              <Gift className="w-5 h-5 text-amber-600" />
+              <h3 className="text-base font-bold text-gray-900 font-serif">
+                Призы и сувениры за прохождение ({physicalRewardGames.length})
+              </h3>
+            </div>
+          </div>
+          <div className="space-y-2.5">
+            {physicalRewardGames.map((g) => {
+              const claim = participant.claimedRewards?.[g.id];
+              const isClaimed = Boolean(claim);
+
+              return (
+                <div
+                  key={`reward-${g.id}`}
+                  className={`p-3.5 rounded-2xl border transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 ${
+                    isClaimed
+                      ? 'bg-emerald-50/70 border-emerald-200'
+                      : 'bg-gradient-to-r from-amber-50 to-orange-50/50 border-amber-300/80 shadow-2xs'
+                  }`}
+                >
+                  <div className="flex items-start gap-3">
+                    <div
+                      className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 mt-0.5 ${
+                        isClaimed
+                          ? 'bg-emerald-600 text-white'
+                          : 'bg-amber-500 text-white shadow-xs'
+                      }`}
+                    >
+                      {isClaimed ? <CheckCircle2 className="w-4 h-4" /> : <Gift className="w-4 h-4" />}
+                    </div>
+                    <div>
+                      <div className="text-xs sm:text-sm font-bold text-gray-900 flex items-center gap-2 flex-wrap">
+                        <span>{claim?.rewardName || g.physicalReward}</span>
+                        <span
+                          className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider ${
+                            isClaimed
+                              ? 'bg-emerald-100 text-emerald-800'
+                              : 'bg-amber-200/80 text-amber-900'
+                          }`}
+                        >
+                          {isClaimed ? 'Выдано ✓' : 'Готов к выдаче'}
+                        </span>
+                      </div>
+                      <div className="text-[11px] text-gray-600 mt-0.5">
+                        Станция #{g.number}: {g.name}
+                        {isClaimed && claim && (
+                          <span className="text-emerald-700 font-medium ml-1">
+                            • Отметка судьи: {claim.claimedAt} ({claim.claimedBy || 'Организатор'})
+                          </span>
+                        )}
+                        {!isClaimed && (
+                          <span className="text-amber-800 font-medium ml-1 block sm:inline">
+                            • Покажите этот экран судье или на инфостойке для получения
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="shrink-0 self-end sm:self-center">
+                    {isClaimed ? (
+                      <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-700 bg-white px-3 py-1 rounded-xl border border-emerald-200">
+                        <CheckCircle2 className="w-3.5 h-3.5" />
+                        Получено
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 text-xs font-bold text-amber-900 bg-white px-3 py-1 rounded-xl border border-amber-300 shadow-2xs">
+                        <Sparkles className="w-3.5 h-3.5 text-amber-600" />
+                        К получению
+                      </span>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Completed Games List */}
       <div>
@@ -185,17 +284,23 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
           ID участника: {participant.id}
         </div>
 
-        <div className="grid grid-cols-2 gap-3 mt-6 pt-5 border-t border-gray-100">
+        <div className="grid grid-cols-3 gap-2 mt-6 pt-5 border-t border-gray-100 text-center">
           <div className="p-3 rounded-xl bg-gray-50 border border-gray-200">
-            <div className="text-xs text-gray-500">Пройдено игр</div>
+            <div className="text-[11px] text-gray-500">Пройдено</div>
             <div className="text-xl font-bold text-red-600 mt-0.5">
               {participant.completedGames.length}
             </div>
           </div>
+          <div className="p-3 rounded-xl bg-amber-50/80 border border-amber-200">
+            <div className="text-[11px] text-amber-800">Призов выдано</div>
+            <div className="text-xl font-bold text-amber-900 mt-0.5">
+              {Object.keys(participant.claimedRewards || {}).length}
+            </div>
+          </div>
           <div className="p-3 rounded-xl bg-gray-50 border border-gray-200">
-            <div className="text-xs text-gray-500">Последняя игра</div>
-            <div className="text-xs font-bold text-gray-800 mt-0.5 truncate">
-              {participant.lastCompletedGame || 'Ещё нет'}
+            <div className="text-[11px] text-gray-500">Последняя</div>
+            <div className="text-xs font-bold text-gray-800 mt-1.5 truncate" title={participant.lastCompletedGame || '—'}>
+              {participant.lastCompletedGame || '—'}
             </div>
           </div>
         </div>

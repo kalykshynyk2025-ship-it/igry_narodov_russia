@@ -43,7 +43,10 @@ export const VerifyCodeModal: React.FC<VerifyCodeModalProps> = ({
     try {
       const result = await onSubmitCode(trimmed);
       if (!result.success) {
-        setErrorMessage(result.message || 'Ошибка проверки кода');
+        // Ensure no hints about subsequent codes are ever displayed to participants
+        const rawMsg = result.message || 'Ошибка проверки кода';
+        const sanitizedMsg = rawMsg.replace(/\s*\(следующий код:[^)]*\)/gi, '');
+        setErrorMessage(sanitizedMsg);
       } else {
         onClose();
       }
@@ -90,13 +93,13 @@ export const VerifyCodeModal: React.FC<VerifyCodeModalProps> = ({
         {/* Content */}
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           <p className="text-gray-600 text-xs sm:text-sm leading-relaxed">
-            Введите одноразовый код, который вам назвал ведущий игры. Каждый код уникален и действует для одного участника.
+            Введите одноразовый проверочный код или кодовое слово станции, которое вам назвал ведущий игры.
           </p>
 
           {/* Large Code Input */}
           <div>
             <label className="block text-xs font-semibold uppercase tracking-wider text-gray-700 mb-1.5">
-              Проверочный код
+              Кодовое слово или проверочный код
             </label>
             <div className="relative">
               <input
@@ -108,7 +111,11 @@ export const VerifyCodeModal: React.FC<VerifyCodeModalProps> = ({
                   setCode(e.target.value.toUpperCase());
                   if (errorMessage) setErrorMessage(null);
                 }}
-                placeholder="Например: HAZYH-014"
+                placeholder={
+                  preselectedGame?.codePrefix
+                    ? `Например: ${preselectedGame.codePrefix}-001 или ${preselectedGame.codePrefix}`
+                    : 'Например: ALTAI-001 или ALTAI'
+                }
                 className="w-full h-14 px-4 text-center tracking-widest font-mono text-xl font-bold uppercase rounded-2xl bg-gray-50 border-2 border-gray-300 focus:border-red-600 focus:bg-white focus:outline-none transition-all placeholder:text-gray-400 placeholder:text-sm placeholder:tracking-normal placeholder:font-sans"
               />
             </div>

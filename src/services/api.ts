@@ -144,6 +144,24 @@ class ApiService {
       if (!res.ok) throw new Error('Failed to update game');
       const updated: Game = await res.json();
       this.syncLocalGame(updated);
+
+      // Also cascade codePrefix change to local offline codes
+      if (updates.codePrefix) {
+        const newPrefix = updates.codePrefix.toUpperCase().trim().replace(/[^A-Z0-9А-ЯЁ\-]/gi, '');
+        const localCodes: Code[] = JSON.parse(localStorage.getItem(STORAGE_KEYS.LOCAL_CODES) || '[]');
+        let modified = false;
+        for (const c of localCodes) {
+          if (c.gameId === id && c.status === 'active') {
+            const seq = c.sequenceNumber || 1;
+            c.code = `${newPrefix}-${String(seq).padStart(3, '0')}`;
+            modified = true;
+          }
+        }
+        if (modified) {
+          localStorage.setItem(STORAGE_KEYS.LOCAL_CODES, JSON.stringify(localCodes));
+        }
+      }
+
       return updated;
     } catch {
       const localGames: Game[] = JSON.parse(localStorage.getItem(STORAGE_KEYS.LOCAL_GAMES) || '[]');
@@ -151,6 +169,24 @@ class ApiService {
       if (idx !== -1) {
         localGames[idx] = { ...localGames[idx], ...updates };
         localStorage.setItem(STORAGE_KEYS.LOCAL_GAMES, JSON.stringify(localGames));
+
+        // Cascade to local codes offline as well
+        if (updates.codePrefix) {
+          const newPrefix = updates.codePrefix.toUpperCase().trim().replace(/[^A-Z0-9А-ЯЁ\-]/gi, '');
+          const localCodes: Code[] = JSON.parse(localStorage.getItem(STORAGE_KEYS.LOCAL_CODES) || '[]');
+          let modified = false;
+          for (const c of localCodes) {
+            if (c.gameId === id && c.status === 'active') {
+              const seq = c.sequenceNumber || 1;
+              c.code = `${newPrefix}-${String(seq).padStart(3, '0')}`;
+              modified = true;
+            }
+          }
+          if (modified) {
+            localStorage.setItem(STORAGE_KEYS.LOCAL_CODES, JSON.stringify(localCodes));
+          }
+        }
+
         return localGames[idx];
       }
       throw new Error('Игра не найдена');
@@ -498,12 +534,54 @@ class ApiService {
     const localGames: Game[] = JSON.parse(localStorage.getItem(STORAGE_KEYS.LOCAL_GAMES) || '[]');
     const localParticipants: Participant[] = JSON.parse(localStorage.getItem(STORAGE_KEYS.LOCAL_PARTICIPANTS) || '[]');
 
-    const foundCode = localCodes.find(c => c.code.toUpperCase() === cleanCode);
+    // 1. Direct match
+    let foundCode = localCodes.find(c => c.code.toUpperCase() === cleanCode);
+
+    // 2. Spaces converted to dash
+    if (!foundCode) {
+      const normalizedWithDash = cleanCode.replace(/\s+/g, '-');
+      foundCode = localCodes.find(c => c.code.toUpperCase() === normalizedWithDash);
+    }
+
+    // 3. Padded sequence match (e.g. PREFIX-1 -> PREFIX-001)
+    if (!foundCode) {
+      const matchNumber = cleanCode.match(/^(.+)[-\s]+(\d+)$/);
+      if (matchNumber) {
+        const pfx = matchNumber[1].trim();
+        const num = parseInt(matchNumber[2], 10);
+        const formattedCode = `${pfx}-${String(num).padStart(3, '0')}`;
+        foundCode = localCodes.find(c => c.code.toUpperCase() === formattedCode);
+      }
+    }
+
+    // 4. Keyword / Prefix match without sequential number
+    if (!foundCode) {
+      const cleanRaw = cleanCode.replace(/[^A-Z0-9А-ЯЁ\-]/gi, '');
+      const matchingGame = localGames.find(g => {
+        if (!g.codePrefix) return false;
+        const pfx = g.codePrefix.toUpperCase().trim();
+        return pfx === cleanCode || pfx === cleanRaw;
+      });
+
+      if (matchingGame) {
+        const nextActive = localCodes
+          .filter(c => c.gameId === matchingGame.id && c.status === 'active')
+          .sort((a, b) => (a.sequenceNumber || 0) - (b.sequenceNumber || 0))[0];
+        const exampleCode = nextActive?.code || `${matchingGame.codePrefix}-001`;
+
+        return {
+          success: false,
+          errorCode: 'INCOMPLETE_CODE',
+          message: `Вы ввели только кодовое слово без номера. Необходимо ввести полный проверочный код с номером очереди (например, ${exampleCode}), который назвал ведущий точки.`
+        };
+      }
+    }
+
     if (!foundCode) {
       return {
         success: false,
         errorCode: 'NOT_FOUND',
-        message: 'Код не найден. Уточните проверочный код у ведущего точки.'
+        message: 'Код не найден. Уточните проверочный код (например, ALTIY-001) у ведущего точки.'
       };
     }
 
@@ -511,7 +589,7 @@ class ApiService {
       return {
         success: false,
         errorCode: 'ALREADY_USED',
-        message: `Этот код (${cleanCode}) уже использован предыдущим участником. Обратитесь к ведущему за актуальным кодом.`
+        message: `Этот код (${cleanCode}) уже был использован ранее. Обратитесь к ведущему точки за актуальным проверочным кодом.`
       };
     }
 
@@ -801,9 +879,61 @@ class ApiService {
     }
   }
 
+  async claimReward(
+    participantId: string,
+    gameId: string,
+    rewardName?: string,
+    adminName: string = 'Администратор'
+  ): Promise<{ success: boolean; participant?: Participant; error?: string }> {
+    try {
+      const res = await fetch(`/api/participants/${participantId}/claim-reward`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ gameId, rewardName, adminName })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Ошибка отметки выдачи награды');
+
+      if (data.participant) {
+        const currentPart = this.getCurrentParticipantData();
+        if (currentPart && currentPart.id === participantId) {
+          this.setCurrentParticipant(data.participant);
+        }
+      }
+      return data;
+    } catch (err: any) {
+      return { success: false, error: err.message || 'Сетевая ошибка' };
+    }
+  }
+
+  async unclaimReward(
+    participantId: string,
+    gameId: string
+  ): Promise<{ success: boolean; participant?: Participant; error?: string }> {
+    try {
+      const res = await fetch(`/api/participants/${participantId}/unclaim-reward`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ gameId })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Ошибка отмены отметки');
+
+      if (data.participant) {
+        const currentPart = this.getCurrentParticipantData();
+        if (currentPart && currentPart.id === participantId) {
+          this.setCurrentParticipant(data.participant);
+        }
+      }
+      return data;
+    } catch (err: any) {
+      return { success: false, error: err.message || 'Сетевая ошибка' };
+    }
+  }
+
   async resetVenue(
     password: string,
-    mode: 'cleanAll' | 'resetProgressOnly' = 'cleanAll'
+    mode: 'cleanAll' | 'resetProgressOnly' | 'resetParticipantsOnly' = 'cleanAll'
   ): Promise<{ success: boolean; message?: string; error?: string }> {
     try {
       const res = await fetch('/api/admin/reset', {
@@ -820,7 +950,7 @@ class ApiService {
       localStorage.removeItem(STORAGE_KEYS.LOCAL_COMPLETIONS);
       localStorage.removeItem(STORAGE_KEYS.CURRENT_PARTICIPANT);
 
-      if (mode === 'cleanAll') {
+      if (mode === 'cleanAll' || mode === 'resetParticipantsOnly') {
         localStorage.removeItem(STORAGE_KEYS.LOCAL_PARTICIPANTS);
       } else {
         const raw = localStorage.getItem(STORAGE_KEYS.LOCAL_PARTICIPANTS);

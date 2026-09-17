@@ -33,7 +33,7 @@ export const ResetVenueModal: React.FC<ResetVenueModalProps> = ({
   games,
   onResetSuccess
 }) => {
-  const [resetMode, setResetMode] = useState<'cleanAll' | 'resetProgressOnly'>('cleanAll');
+  const [resetMode, setResetMode] = useState<'cleanAll' | 'resetProgressOnly' | 'resetParticipantsOnly'>('cleanAll');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -252,6 +252,36 @@ export const ResetVenueModal: React.FC<ResetVenueModalProps> = ({
                     </div>
                     <p className="text-[11px] text-gray-500 mt-1 leading-normal">
                       Сохраняет учетные записи участников, но обнуляет их результат (0 из 22) и сбрасывает все коды станций к №001. Те же люди смогут заново проходить игры с нулевой позиции.
+                    </p>
+                  </div>
+                </label>
+
+                {/* Mode C: Reset Participants Only */}
+                <label
+                  onClick={() => setResetMode('resetParticipantsOnly')}
+                  className={`p-3.5 rounded-2xl border-2 transition-all cursor-pointer flex items-start gap-3 ${
+                    resetMode === 'resetParticipantsOnly'
+                      ? 'border-red-600 bg-red-50/40 ring-2 ring-red-500/20'
+                      : 'border-gray-200 bg-white hover:bg-gray-50'
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="resetMode"
+                    value="resetParticipantsOnly"
+                    checked={resetMode === 'resetParticipantsOnly'}
+                    onChange={() => setResetMode('resetParticipantsOnly')}
+                    className="mt-0.5 text-red-600 focus:ring-red-500"
+                  />
+                  <div>
+                    <div className="text-xs font-bold text-gray-900 flex items-center gap-1.5">
+                      <span>Сброс только для участников</span>
+                      <span className="text-[10px] bg-amber-600 text-white font-semibold px-1.5 py-0.2 rounded">
+                        Только база людей
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-gray-500 mt-1 leading-normal">
+                      Очищает только список зарегистрированных участников и историю их прохождений. Все 22 игры, ведущие, ориентиры, тексты мифологии и карта остаются без изменений. Коды станций обновляются к №001 для нового потока участников.
                     </p>
                   </div>
                 </label>

@@ -446,6 +446,42 @@ async function startServer() {
     }
   });
 
+  // Claim a physical reward (marked by judge/admin so it cannot be claimed twice)
+  app.post('/api/participants/:id/claim-reward', (req: Request, res: Response) => {
+    try {
+      const { id } = req.params;
+      const { gameId, rewardName, adminName } = req.body;
+      if (!gameId) {
+        return res.status(400).json({ success: false, error: 'Укажите ID игровой станции (gameId)' });
+      }
+      const updated = db.claimReward(id, gameId, rewardName, adminName || 'Администратор фестиваля');
+      if (!updated) {
+        return res.status(404).json({ success: false, error: 'Участник не найден' });
+      }
+      res.json({ success: true, participant: updated });
+    } catch (err: any) {
+      res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
+  // Undo claim of a physical reward (in case of misclick)
+  app.post('/api/participants/:id/unclaim-reward', (req: Request, res: Response) => {
+    try {
+      const { id } = req.params;
+      const { gameId } = req.body;
+      if (!gameId) {
+        return res.status(400).json({ success: false, error: 'Укажите ID игровой станции (gameId)' });
+      }
+      const updated = db.unclaimReward(id, gameId);
+      if (!updated) {
+        return res.status(404).json({ success: false, error: 'Участник не найден' });
+      }
+      res.json({ success: true, participant: updated });
+    } catch (err: any) {
+      res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
   // --- CODES ROUTES ---
   app.post('/api/codes/verify', (req: Request, res: Response) => {
     try {
@@ -543,12 +579,20 @@ async function startServer() {
         });
       }
 
-      const resetMode = mode === 'resetProgressOnly' ? 'resetProgressOnly' : 'cleanAll';
+      const resetMode: 'cleanAll' | 'resetProgressOnly' | 'resetParticipantsOnly' =
+        mode === 'resetProgressOnly'
+          ? 'resetProgressOnly'
+          : mode === 'resetParticipantsOnly'
+          ? 'resetParticipantsOnly'
+          : 'cleanAll';
+
       db.resetVenue(resetMode);
       res.json({
         success: true,
         message: resetMode === 'cleanAll'
           ? 'Фестиваль полностью сброшен для новой площадки. Все игры и коды на нулевой позиции.'
+          : resetMode === 'resetParticipantsOnly'
+          ? 'Список участников и история прохождений успешно очищены. Настройки точек и кодов подготовлены к новому потоку.'
           : 'Прогресс игр и коды сброшены. Участники могут проходить игры заново с 0.'
       });
     } catch (err: any) {
@@ -646,7 +690,12 @@ async function startServer() {
   // --- VITE MIDDLEWARE OR STATIC SERVING ---
   if (process.env.NODE_ENV !== 'production') {
     const vite = await createViteServer({
-      server: { middlewareMode: true },
+      server: {
+        middlewareMode: true,
+        watch: {
+          ignored: ['**/data/**', '**/public/uploads/**', '**/*.json', '**/dist/**'],
+        },
+      },
       appType: 'spa',
     });
     app.use(vite.middlewares);

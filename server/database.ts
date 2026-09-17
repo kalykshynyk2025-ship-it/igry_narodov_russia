@@ -26,12 +26,21 @@ class InMemoryDatabase {
           for (const g of parsed.games) {
             const initialMatch = INITIAL_GAMES.find(ig => ig.id === g.id);
             if (initialMatch) {
-              g.imageUrl = initialMatch.imageUrl;
-              g.mythologyCreature = initialMatch.mythologyCreature;
-              g.mythologyCulture = initialMatch.mythologyCulture;
+              if (!g.imageUrl) g.imageUrl = initialMatch.imageUrl;
+              if (g.mythologyCreature === undefined) g.mythologyCreature = initialMatch.mythologyCreature;
+              if (g.mythologyCulture === undefined) g.mythologyCulture = initialMatch.mythologyCulture;
+              if (g.mythologyDescription === undefined) g.mythologyDescription = initialMatch.mythologyDescription;
+              if (g.showMythology === undefined) g.showMythology = true;
+              if (g.rewardPoints === undefined) g.rewardPoints = 1;
+              if (g.rewardCurrency === undefined) g.rewardCurrency = 'балл в маршрутник';
+              if (g.physicalReward === undefined) g.physicalReward = '';
+              if (g.showPhysicalReward === undefined) g.showPhysicalReward = false;
               delete (g as any).mythologyDepiction;
-              g.mythologyDescription = initialMatch.mythologyDescription;
             } else {
+              if (g.rewardPoints === undefined) g.rewardPoints = 1;
+              if (g.rewardCurrency === undefined) g.rewardCurrency = 'балл в маршрутник';
+              if (g.physicalReward === undefined) g.physicalReward = '';
+              if (g.showPhysicalReward === undefined) g.showPhysicalReward = false;
               delete (g as any).mythologyDepiction;
             }
             this.games.set(g.id, g);
@@ -45,6 +54,7 @@ class InMemoryDatabase {
           const testEmails = new Set(['ivan.other@gmail.com', 'family@test.ru', 'maria@family.ru']);
           for (const p of parsed.participants) {
             if (!testIds.has(p.id) && !testEmails.has(p.email)) {
+              if (!p.claimedRewards) p.claimedRewards = {};
               this.participants.set(p.id, p);
             }
           }
@@ -69,6 +79,26 @@ class InMemoryDatabase {
         }
         // Ensure each game has at least 500 sequential codes (for large festivals > 50 participants)
         this.ensureCodesPerGame(500);
+
+        // Self-heal: ensure active codes match their game's current codePrefix
+        let selfHealed = false;
+        for (const game of this.games.values()) {
+          const expectedPrefix = (game.codePrefix || 'GAME').toUpperCase().trim();
+          for (const [cId, codeItem] of this.codes.entries()) {
+            if (codeItem.gameId === game.id && codeItem.status === 'active') {
+              const currentPrefix = codeItem.code.split('-')[0] || '';
+              if (currentPrefix !== expectedPrefix) {
+                const seq = codeItem.sequenceNumber || 1;
+                codeItem.code = `${expectedPrefix}-${String(seq).padStart(3, '0')}`;
+                this.codes.set(cId, codeItem);
+                selfHealed = true;
+              }
+            }
+          }
+        }
+        if (selfHealed) {
+          this.saveToFile();
+        }
         return;
       }
     } catch (err) {
@@ -249,8 +279,36 @@ class InMemoryDatabase {
   public updateGame(id: string, updates: Partial<Game>): Game | null {
     const existing = this.games.get(id);
     if (!existing) return null;
+
+    const oldPrefix = (existing.codePrefix || 'GAME').toUpperCase().trim();
+    let newPrefix: string | undefined = undefined;
+
+    if (typeof updates.codePrefix === 'string') {
+      newPrefix = updates.codePrefix.trim().toUpperCase().replace(/[^A-Z0-9А-ЯЁ\-]/gi, '');
+      if (!newPrefix) {
+        newPrefix = 'GAME';
+      }
+      updates.codePrefix = newPrefix;
+    }
+
     const updated = { ...existing, ...updates };
     this.games.set(id, updated);
+
+    // If prefix changed, cascade the new prefix to all active codes of this station!
+    if (newPrefix && newPrefix !== oldPrefix) {
+      let updatedCodesCount = 0;
+      for (const [cId, codeItem] of this.codes.entries()) {
+        if (codeItem.gameId === id && codeItem.status === 'active') {
+          const seq = codeItem.sequenceNumber || 1;
+          const numStr = String(seq).padStart(3, '0');
+          codeItem.code = `${newPrefix}-${numStr}`;
+          this.codes.set(cId, codeItem);
+          updatedCodesCount++;
+        }
+      }
+      console.log(`[DB] Cascade prefix update for game ${id} (${updated.name}): "${oldPrefix}" -> "${newPrefix}". Updated ${updatedCodesCount} active codes.`);
+    }
+
     this.saveToFile();
     return {
       ...updated,
@@ -528,30 +586,105 @@ class InMemoryDatabase {
     }
   }
 
+  public claimReward(participantId: string, gameId: string, rewardName?: string, adminName: string = 'Организатор'): Participant | null {
+    const p = this.participants.get(participantId);
+    if (!p) return null;
+    if (!p.claimedRewards) {
+      p.claimedRewards = {};
+    }
+    const game = this.games.get(gameId);
+    const now = new Date();
+    const timeFormatted = now.toLocaleDateString('ru-RU') + ' ' + now.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+    const finalRewardName = rewardName || game?.physicalReward || 'Приз за победу';
+
+    p.claimedRewards[gameId] = {
+      gameId,
+      gameNumber: game?.number,
+      gameName: game?.name,
+      rewardName: finalRewardName,
+      claimedAt: timeFormatted,
+      claimedBy: adminName
+    };
+
+    this.participants.set(participantId, p);
+    this.saveToFile();
+    return p;
+  }
+
+  public unclaimReward(participantId: string, gameId: string): Participant | null {
+    const p = this.participants.get(participantId);
+    if (!p || !p.claimedRewards) return null;
+    delete p.claimedRewards[gameId];
+    this.participants.set(participantId, p);
+    this.saveToFile();
+    return p;
+  }
+
   // Sequential Code Verification
   public verifyGameCode(participantId: string, rawCode: string): VerifyCodeResponse {
     const trimmedCode = (rawCode || '').trim().toUpperCase();
 
     // 1. Check code existence
-    const codeEntry = Array.from(this.codes.values()).find(
+    // A) Direct exact match
+    let codeEntry = Array.from(this.codes.values()).find(
       c => c.code.toUpperCase() === trimmedCode
     );
+
+    // B) Normalized match with spaces converted to hyphens
+    if (!codeEntry) {
+      const normalizedWithDash = trimmedCode.replace(/\s+/g, '-');
+      codeEntry = Array.from(this.codes.values()).find(
+        c => c.code.toUpperCase() === normalizedWithDash
+      );
+    }
+
+    // C) Padded sequence match (e.g. ALTAI-1 or ALTAI-01 -> ALTAI-001)
+    if (!codeEntry) {
+      const matchNumber = trimmedCode.match(/^(.+)[-\s]+(\d+)$/);
+      if (matchNumber) {
+        const pfx = matchNumber[1].trim();
+        const num = parseInt(matchNumber[2], 10);
+        const formattedCode = `${pfx}-${String(num).padStart(3, '0')}`;
+        codeEntry = Array.from(this.codes.values()).find(
+          c => c.code.toUpperCase() === formattedCode
+        );
+      }
+    }
+
+    // D) Keyword check: participant entered only the station's keyword / prefix without sequential number
+    if (!codeEntry) {
+      const cleanRaw = trimmedCode.replace(/[^A-Z0-9А-ЯЁ\-]/gi, '');
+      const matchingGame = Array.from(this.games.values()).find(g => {
+        if (!g.codePrefix) return false;
+        const pfx = g.codePrefix.toUpperCase().trim();
+        return pfx === trimmedCode || pfx === cleanRaw;
+      });
+
+      if (matchingGame) {
+        const nextCode = this.getNextSequentialCodeForGame(matchingGame.id);
+        const exampleCode = nextCode || `${matchingGame.codePrefix}-001`;
+        return {
+          success: false,
+          errorCode: 'INCOMPLETE_CODE',
+          message: `Вы ввели только кодовое слово без номера. Необходимо ввести полный проверочный код с номером очереди (например, ${exampleCode}), который назвал ведущий точки.`
+        };
+      }
+    }
 
     if (!codeEntry) {
       return {
         success: false,
         errorCode: 'NOT_FOUND',
-        message: 'Код не найден. Уточните проверочный код у ведущего точки.'
+        message: 'Код не найден. Уточните проверочный код (например, ALTIY-001) у ведущего точки.'
       };
     }
 
     // 2. Check if code is already used (Strict sequential rule!)
     if (codeEntry.status === 'used') {
-      const nextSeq = this.getNextSequentialCodeForGame(codeEntry.gameId);
       return {
         success: false,
         errorCode: 'ALREADY_USED',
-        message: `Этот код (${trimmedCode}) уже использован предыдущим участником. Обратитесь к ведущему за актуальным кодом (следующий код: ${nextSeq}).`
+        message: `Этот код (${trimmedCode}) уже был использован ранее. Обратитесь к ведущему точки за актуальным проверочным кодом.`
       };
     }
 
@@ -608,6 +741,8 @@ class InMemoryDatabase {
     participant.completedGames.push(game.id);
     participant.lastCompletedGame = game.name;
     participant.lastCompletedAt = timeFormatted;
+    const awardedPoints = typeof game.rewardPoints === 'number' ? game.rewardPoints : 1;
+    participant.totalScore = (participant.totalScore ?? 0) + awardedPoints;
     this.participants.set(participant.id, participant);
 
     // Add completion record
@@ -766,9 +901,9 @@ class InMemoryDatabase {
     return existed;
   }
 
-  public resetVenue(mode: 'cleanAll' | 'resetProgressOnly' = 'cleanAll'): void {
-    if (mode === 'cleanAll') {
-      // Clear all participants so they can re-register from scratch on new venue
+  public resetVenue(mode: 'cleanAll' | 'resetProgressOnly' | 'resetParticipantsOnly' = 'cleanAll'): void {
+    if (mode === 'cleanAll' || mode === 'resetParticipantsOnly') {
+      // Clear all participants so they can re-register from scratch on new venue / new session
       this.participants.clear();
     } else {
       // Keep participants, but reset completedGames to [] and clear latest completion stamps
@@ -776,6 +911,8 @@ class InMemoryDatabase {
         p.completedGames = [];
         delete p.lastCompletedGame;
         delete p.lastCompletedAt;
+        p.totalScore = 0;
+        p.claimedRewards = {};
       }
     }
 
@@ -787,7 +924,7 @@ class InMemoryDatabase {
       c.status = 'active';
     }
 
-    // Ensure all 22 games have full 500 sequential codes starting from 1
+    // Ensure all games have full sequential codes starting from 1
     this.ensureCodesPerGame(500);
 
     this.saveToFile();
