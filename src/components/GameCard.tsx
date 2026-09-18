@@ -108,7 +108,7 @@ export const GameCard: React.FC<GameCardProps> = ({ game, isCompleted, onSelect 
           <div className="flex items-center gap-1.5 flex-wrap mb-2">
             <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-red-50 text-red-700 border border-red-200/80 font-bold text-[11px]">
               <span>+{game.rewardPoints ?? 1}</span>
-              <span className="font-medium text-red-900">{game.rewardCurrency || 'балл'}</span>
+              <span className="font-medium text-red-900">{game.rewardCurrency || 'балл в маршрутник'}</span>
             </span>
             {(game.showPhysicalReward ?? Boolean(game.physicalReward)) && game.physicalReward && (
               <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-50 text-amber-900 border border-amber-200/80 font-medium text-[11px] truncate max-w-[190px]" title={game.physicalReward}>

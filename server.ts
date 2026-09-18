@@ -246,6 +246,7 @@ async function startServer() {
       }
 
       const newGame = db.createGame({
+        ...req.body,
         name,
         people,
         description: description || '',
@@ -259,10 +260,27 @@ async function startServer() {
         hostName: hostName || 'Ведущий площадки',
         codePrefix: codePrefix || '',
         mapX: typeof mapX === 'number' ? mapX : 50,
-        mapY: typeof mapY === 'number' ? mapY : 50
+        mapY: typeof mapY === 'number' ? mapY : 50,
+        rewardPoints: req.body.rewardPoints !== undefined ? Number(req.body.rewardPoints) : 1,
+        rewardCurrency: req.body.rewardCurrency ? String(req.body.rewardCurrency).trim() : undefined,
+        physicalReward: req.body.physicalReward || '',
+        showPhysicalReward: req.body.showPhysicalReward ?? Boolean(req.body.physicalReward)
       });
 
       res.status(201).json(newGame);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.put('/api/settings/currency', (req: Request, res: Response) => {
+    try {
+      const { currency } = req.body;
+      if (!currency || !currency.trim()) {
+        return res.status(400).json({ error: 'Валюта не указана' });
+      }
+      db.updateAllGamesCurrency(currency.trim());
+      res.json({ success: true, currency: currency.trim(), games: db.getAllGames() });
     } catch (err: any) {
       res.status(500).json({ error: err.message });
     }
@@ -477,6 +495,43 @@ async function startServer() {
         return res.status(404).json({ success: false, error: 'Участник не найден' });
       }
       res.json({ success: true, participant: updated });
+    } catch (err: any) {
+      res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
+  // Shop / Points Redemption: participant buys in store or gets paid out in cash/points
+  app.post('/api/participants/:id/redeem-points', (req: Request, res: Response) => {
+    try {
+      const { id } = req.params;
+      const { amount, note, adminName } = req.body;
+      const numAmount = Number(amount);
+      if (isNaN(numAmount) || numAmount <= 0) {
+        return res.status(400).json({ success: false, error: 'Укажите положительное количество списываемых баллов' });
+      }
+      const result = db.redeemPoints(id, numAmount, note, adminName || 'Администратор магазина');
+      if (!result.success) {
+        return res.status(400).json(result);
+      }
+      res.json(result);
+    } catch (err: any) {
+      res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
+  // Undo point redemption (in case of misentry or refund)
+  app.post('/api/participants/:id/undo-redeem-points', (req: Request, res: Response) => {
+    try {
+      const { id } = req.params;
+      const { redemptionId } = req.body;
+      if (!redemptionId) {
+        return res.status(400).json({ success: false, error: 'Укажите ID операции (redemptionId)' });
+      }
+      const result = db.undoRedeemPoints(id, redemptionId);
+      if (!result.success) {
+        return res.status(400).json(result);
+      }
+      res.json(result);
     } catch (err: any) {
       res.status(500).json({ success: false, error: err.message });
     }

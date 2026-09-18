@@ -41,9 +41,13 @@ import {
   Gift,
   Coins,
   Trophy,
-  Award
+  Award,
+  ShoppingBag,
+  Store,
+  Receipt,
+  MinusCircle
 } from 'lucide-react';
-import { Game, Participant, Code, GameCompletion, AdminStats, MapCircleSettings, DEFAULT_MAP_CIRCLE_SETTINGS, DEFAULT_GAME_CARD_IMAGE, cleanProhibitedPhrases } from '../types';
+import { Game, Participant, PointRedemptionItem, getParticipantBalance, Code, GameCompletion, AdminStats, MapCircleSettings, DEFAULT_MAP_CIRCLE_SETTINGS, DEFAULT_GAME_CARD_IMAGE, cleanProhibitedPhrases } from '../types';
 import { api } from '../services/api';
 import { SchematicFestivalMap } from './SchematicFestivalMap';
 import { ImageUploader } from './ImageUploader';
@@ -74,7 +78,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   circleSettings,
   onUpdateCircleSettings
 }) => {
-  const [activeTab, setActiveTab] = useState<'games' | 'map' | 'codes' | 'participants' | 'stats' | 'offline'>('games');
+  const [activeTab, setActiveTab] = useState<'games' | 'map' | 'codes' | 'participants' | 'shop' | 'stats' | 'offline'>('games');
   const [isOfflineModalOpen, setIsOfflineModalOpen] = useState(false);
   const [stats, setStats] = useState<AdminStats | null>(null);
   const [codes, setCodes] = useState<Code[]>([]);
@@ -82,6 +86,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     participant: Participant;
     history: GameCompletion[];
   } | null>(null);
+
+  // Shop & Point Redemption state
+  const [isRedeemingPoints, setIsRedeemingPoints] = useState(false);
+  const [pointRedeemAmount, setPointRedeemAmount] = useState<number | ''>(1);
+  const [pointRedeemNote, setPointRedeemNote] = useState('Покупка в магазине');
+  const [shopSearch, setShopSearch] = useState('');
+  const [selectedShopParticipantId, setSelectedShopParticipantId] = useState<string | null>(null);
 
   // Filter & Search states
   const [searchParticipant, setSearchParticipant] = useState('');
@@ -248,6 +259,41 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     }
   };
 
+  const handleRedeemPoints = async (participantId: string, amount: number, note: string) => {
+    if (isNaN(amount) || amount <= 0) return;
+    setIsRedeemingPoints(true);
+    const res = await api.redeemPoints(participantId, amount, note, 'Администратор');
+    setIsRedeemingPoints(false);
+    if (res.success && res.participant) {
+      if (selectedParticipantHistory && selectedParticipantHistory.participant.id === participantId) {
+        setSelectedParticipantHistory({
+          ...selectedParticipantHistory,
+          participant: res.participant
+        });
+      }
+      await onRefreshData();
+    } else if (res.error) {
+      alert(res.error);
+    }
+  };
+
+  const handleUndoRedeemPoints = async (participantId: string, redemptionId: string) => {
+    setIsRedeemingPoints(true);
+    const res = await api.undoRedeemPoints(participantId, redemptionId);
+    setIsRedeemingPoints(false);
+    if (res.success && res.participant) {
+      if (selectedParticipantHistory && selectedParticipantHistory.participant.id === participantId) {
+        setSelectedParticipantHistory({
+          ...selectedParticipantHistory,
+          participant: res.participant
+        });
+      }
+      await onRefreshData();
+    } else if (res.error) {
+      alert(res.error);
+    }
+  };
+
   const handleViewParticipantHistory = async (participant: Participant) => {
     const history = await api.getParticipantHistory(participant.id);
     setSelectedParticipantHistory({ participant, history });
@@ -292,7 +338,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       mythologyCreature: '',
       mythologyDescription: '',
       rewardPoints: 1,
-      rewardCurrency: 'балл в маршрутник',
+      rewardCurrency: games.find(g => g.rewardCurrency?.trim())?.rewardCurrency?.trim() || 'балл в маршрутник',
       physicalReward: '',
       showPhysicalReward: false
     });
@@ -300,13 +346,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   };
 
   const handleOpenEditGame = (game: Game) => {
+    const activeCurrency = games.find(g => g.rewardCurrency?.trim())?.rewardCurrency?.trim() || 'балл в маршрутник';
     setEditingGame(game);
     setGameFormData({
       ...game,
       mythologyTitle: game.mythologyTitle || 'Мифология и сказания',
       showMythology: game.showMythology ?? Boolean(game.mythologyDescription),
       rewardPoints: game.rewardPoints ?? 1,
-      rewardCurrency: game.rewardCurrency || 'балл в маршрутник',
+      rewardCurrency: game.rewardCurrency || activeCurrency,
       physicalReward: game.physicalReward || '',
       showPhysicalReward: game.showPhysicalReward ?? Boolean(game.physicalReward)
     });
@@ -330,6 +377,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       .trim()
       .replace(/[^A-Z0-9А-ЯЁ\-]/gi, '') || 'GAME';
 
+    const activeCurrency = gameFormData.rewardCurrency?.trim() || games.find(g => g.rewardCurrency?.trim())?.rewardCurrency?.trim() || 'балл в маршрутник';
+
     const preparedData = {
       ...gameFormData,
       codePrefix: sanitizedPrefix,
@@ -339,7 +388,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       mythologyCreature: gameFormData.mythologyCreature || '',
       mythologyDescription: gameFormData.mythologyDescription || '',
       rewardPoints: Number(gameFormData.rewardPoints) || 1,
-      rewardCurrency: gameFormData.rewardCurrency?.trim() || 'балл в маршрутник',
+      rewardCurrency: activeCurrency,
       physicalReward: gameFormData.physicalReward?.trim() || '',
       showPhysicalReward: gameFormData.showPhysicalReward ?? Boolean(gameFormData.physicalReward?.trim())
     };
@@ -367,10 +416,15 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         mythologyCreature: gameFormData.mythologyCreature || '',
         mythologyDescription: gameFormData.mythologyDescription || '',
         rewardPoints: Number(gameFormData.rewardPoints) || 1,
-        rewardCurrency: gameFormData.rewardCurrency?.trim() || 'балл в маршрутник',
+        rewardCurrency: activeCurrency,
         physicalReward: gameFormData.physicalReward?.trim() || '',
         showPhysicalReward: gameFormData.showPhysicalReward ?? Boolean(gameFormData.physicalReward?.trim())
       });
+    }
+
+    // Cascade currency update across all games so every single card is guaranteed to match
+    if (activeCurrency) {
+      await api.updateRewardCurrency(activeCurrency);
     }
 
     setIsFormOpen(false);
@@ -560,6 +614,19 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         </button>
 
         <button
+          onClick={() => setActiveTab('shop')}
+          id="admin-tab-shop"
+          className={`px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-2 transition-colors cursor-pointer ${
+            activeTab === 'shop'
+              ? 'bg-red-600 text-white shadow-sm'
+              : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-200'
+          }`}
+        >
+          <ShoppingBag className="w-4 h-4" />
+          <span>Касса / Магазин</span>
+        </button>
+
+        <button
           onClick={() => setActiveTab('stats')}
           id="admin-tab-stats"
           className={`px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-2 transition-colors cursor-pointer ${
@@ -602,11 +669,38 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               <Search className="w-4 h-4 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
             </div>
 
+            {/* Common festival currency indicator */}
+            {(() => {
+              const activeCurr = games.find(g => g.rewardCurrency?.trim())?.rewardCurrency?.trim() || 'балл в маршрутник';
+              return (
+                <div className="flex items-center gap-2 px-3.5 py-2.5 rounded-xl bg-amber-50/90 border border-amber-200/90 text-xs text-amber-900 font-medium shrink-0 shadow-2xs">
+                  <span className="text-amber-700 font-semibold">Валюта карточек:</span>
+                  <span className="font-bold text-amber-950 bg-white/80 px-2 py-0.5 rounded-lg border border-amber-200/80">
+                    {activeCurr}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      const newCurr = window.prompt('Укажите общее обозначение единиц награды для всех карточек игр:', activeCurr);
+                      if (newCurr && newCurr.trim() && newCurr.trim() !== activeCurr) {
+                        await api.updateRewardCurrency(newCurr.trim());
+                        await onRefreshData();
+                      }
+                    }}
+                    className="text-[11px] text-red-600 hover:text-red-700 font-bold underline cursor-pointer ml-1"
+                    title="Изменить единицу награды на всех карточках квеста"
+                  >
+                    Изменить
+                  </button>
+                </div>
+              );
+            })()}
+
             {/* Add Game Button */}
             <button
               onClick={handleOpenAddGame}
               id="admin-add-game-btn"
-              className="px-4 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-sm transition-colors cursor-pointer"
+              className="px-4 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-sm transition-colors cursor-pointer shrink-0"
             >
               <Plus className="w-4 h-4 stroke-[3]" />
               <span>Добавить новую точку</span>
@@ -737,7 +831,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     <div className="flex items-center gap-1.5 font-bold text-gray-800">
                       <Trophy className="w-3.5 h-3.5 text-red-600 shrink-0" />
                       <span>+{game.rewardPoints ?? 1}</span>
-                      <span className="font-medium text-gray-600 truncate max-w-[120px]">{game.rewardCurrency || 'балл'}</span>
+                      <span className="font-medium text-gray-600 truncate max-w-[120px]">{game.rewardCurrency || 'балл в маршрутник'}</span>
                     </div>
                     {(game.showPhysicalReward ?? Boolean(game.physicalReward)) && game.physicalReward ? (
                       <span className="text-[10px] font-bold text-amber-950 bg-amber-100/90 px-2 py-0.5 rounded-md border border-amber-300 truncate max-w-[160px]" title={game.physicalReward}>
@@ -1936,8 +2030,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   const percent = total > 0 ? Math.round((completedCount / total) * 100) : 0;
 
                   const participantGames = games.filter(g => p.completedGames.includes(g.id));
-                  const earnedPoints = participantGames.reduce((sum, g) => sum + (g.rewardPoints ?? 1), 0);
                   const sampleCurrency = games.find(g => g.rewardCurrency?.trim())?.rewardCurrency?.trim() || 'б.';
+                  const balance = getParticipantBalance(p, games);
 
                   const physicalGames = participantGames.filter(
                     g => (g.showPhysicalReward ?? Boolean(g.physicalReward)) && g.physicalReward
@@ -1981,8 +2075,16 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                           <span className="px-2.5 py-0.5 rounded-full bg-red-50 text-red-600 font-bold border border-red-200 text-xs">
                             {completedCount} / {total} ({percent}%)
                           </span>
-                          <span className="px-2 py-0.5 rounded-full bg-amber-50 text-amber-900 font-bold border border-amber-200 text-xs">
-                            ⭐ {earnedPoints} {sampleCurrency}
+                          <span className="px-2 py-0.5 rounded-full bg-amber-50 text-amber-900 font-bold border border-amber-200 text-xs" title="Собрано за игры">
+                            ⭐ Собрано: {balance.earnedScore} {sampleCurrency}
+                          </span>
+                          {balance.spentScore > 0 && (
+                            <span className="px-2 py-0.5 rounded-full bg-purple-50 text-purple-900 font-bold border border-purple-200 text-xs" title="Потрачено в магазине">
+                              Потрачено: {balance.spentScore}
+                            </span>
+                          )}
+                          <span className="px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-800 font-black border border-emerald-300 text-xs shadow-2xs" title="Доступный остаток для выдачи/покупок">
+                            💰 Остаток: {balance.remainingScore} {sampleCurrency}
                           </span>
                         </div>
                         {physicalGames.length > 0 && (
@@ -2006,10 +2108,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                         <button
                           onClick={() => handleViewParticipantHistory(p)}
                           className="px-3 py-1.5 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-800 font-semibold text-xs transition-colors cursor-pointer flex items-center gap-1.5"
-                          title="Посмотреть маршрут и выдать призы"
+                          title="Посмотреть маршрут, списать баллы или выдать призы"
                         >
+                          <ShoppingBag className="w-3.5 h-3.5 text-emerald-600" />
                           <Gift className="w-3.5 h-3.5 text-amber-600" />
-                          <span>Призы / Маршрут</span>
+                          <span>Касса / Призы</span>
                         </button>
                         <button
                           onClick={() => setParticipantToDelete(p)}
@@ -2027,6 +2130,525 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           </div>
         </div>
       )}
+
+      {/* TAB: SHOP & CASHIER DESK */}
+      {activeTab === 'shop' && (() => {
+        const sampleShopCurrency = games.find(g => g.rewardCurrency?.trim())?.rewardCurrency?.trim() || 'баллов';
+        const festivalTotals = participants.reduce((acc, p) => {
+          const b = getParticipantBalance(p, games);
+          return {
+            earned: acc.earned + b.earnedScore,
+            spent: acc.spent + b.spentScore,
+            remaining: acc.remaining + b.remainingScore
+          };
+        }, { earned: 0, spent: 0, remaining: 0 });
+
+        const filteredShopParticipants = participants.filter(p => {
+          const q = shopSearch.toLowerCase().trim();
+          if (!q) return true;
+          return (
+            p.name.toLowerCase().includes(q) ||
+            p.id.toLowerCase().includes(q) ||
+            (p.phone && p.phone.toLowerCase().includes(q)) ||
+            (p.email && p.email.toLowerCase().includes(q)) ||
+            (p.cityOrTeam && p.cityOrTeam.toLowerCase().includes(q))
+          );
+        });
+
+        const activeShopParticipant = participants.find(p => p.id === selectedShopParticipantId) || null;
+        const activeShopBalance = activeShopParticipant ? getParticipantBalance(activeShopParticipant, games) : null;
+
+        const allFestivalRedemptions: { participant: Participant; redemption: PointRedemptionItem }[] = [];
+        participants.forEach(p => {
+          if (p.pointRedemptions) {
+            p.pointRedemptions.forEach(r => {
+              allFestivalRedemptions.push({ participant: p, redemption: r });
+            });
+          }
+        });
+        allFestivalRedemptions.sort((a, b) => b.redemption.id.localeCompare(a.redemption.id));
+
+        return (
+          <div className="space-y-6">
+            {/* Top Summary Banner */}
+            <div className="bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-700 rounded-3xl p-6 text-white shadow-md">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                  <div className="flex items-center gap-2 font-bold text-xs uppercase tracking-wider text-emerald-100">
+                    <Store className="w-4 h-4" />
+                    <span>Рабочее место кассира и магазина</span>
+                  </div>
+                  <h2 className="text-xl sm:text-2xl font-black font-serif mt-1">
+                    Касса фестиваля: выдача денег и списание баллов
+                  </h2>
+                  <p className="text-xs text-emerald-100/90 mt-1 max-w-xl">
+                    Участники приходят в магазин или к кассе: выберите участника по имени, телефону или ID, укажите сумму баллов и назначение покупки или выдачи денег.
+                  </p>
+                </div>
+              </div>
+
+              {/* 4 Key Stat Badges */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-5">
+                <div className="bg-white/10 backdrop-blur-xs rounded-2xl p-3 border border-white/15">
+                  <div className="text-[11px] text-emerald-100">Всего участников</div>
+                  <div className="text-xl sm:text-2xl font-black mt-0.5">{participants.length}</div>
+                </div>
+                <div className="bg-white/10 backdrop-blur-xs rounded-2xl p-3 border border-white/15">
+                  <div className="text-[11px] text-emerald-100">Собрано баллов</div>
+                  <div className="text-xl sm:text-2xl font-black mt-0.5">{festivalTotals.earned}</div>
+                  <div className="text-[10px] text-emerald-200 truncate">{sampleShopCurrency}</div>
+                </div>
+                <div className="bg-white/10 backdrop-blur-xs rounded-2xl p-3 border border-white/15">
+                  <div className="text-[11px] text-emerald-100">Выдано / списано</div>
+                  <div className="text-xl sm:text-2xl font-black mt-0.5">{festivalTotals.spent}</div>
+                  <div className="text-[10px] text-emerald-200 truncate">в магазине</div>
+                </div>
+                <div className="bg-emerald-950/40 rounded-2xl p-3 border border-emerald-300/40 shadow-inner">
+                  <div className="text-[11px] text-emerald-200 font-bold">Остаток на руках</div>
+                  <div className="text-xl sm:text-2xl font-black text-amber-300 mt-0.5">{festivalTotals.remaining}</div>
+                  <div className="text-[10px] text-emerald-200 truncate">доступно к покупкам</div>
+                </div>
+              </div>
+            </div>
+
+            {/* Split Workspace: Participants list on left, cashier desk on right */}
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
+              {/* Left Column: Participant Search & List */}
+              <div className="lg:col-span-5 bg-white rounded-3xl border border-gray-200 overflow-hidden shadow-xs">
+                <div className="p-4 border-b border-gray-100 bg-gray-50/60 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-gray-700 flex items-center gap-1.5">
+                      <Users className="w-3.5 h-3.5 text-gray-500" />
+                      <span>Выбор участника ({filteredShopParticipants.length})</span>
+                    </span>
+                    {activeShopParticipant && (
+                      <button
+                        onClick={() => setSelectedShopParticipantId(null)}
+                        className="text-[11px] text-gray-400 hover:text-gray-700 cursor-pointer"
+                      >
+                        Сбросить выбор
+                      </button>
+                    )}
+                  </div>
+                  <div className="relative">
+                    <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                    <input
+                      type="text"
+                      placeholder="Имя, телефон, ID, email, команда..."
+                      value={shopSearch}
+                      onChange={(e) => setShopSearch(e.target.value)}
+                      className="w-full pl-9 pr-3 py-2 text-xs rounded-xl border border-gray-200 focus:outline-none focus:border-emerald-500 bg-white"
+                    />
+                  </div>
+                </div>
+
+                <div className="divide-y divide-gray-100 max-h-[520px] overflow-y-auto">
+                  {filteredShopParticipants.length === 0 ? (
+                    <div className="p-8 text-center text-xs text-gray-400">
+                      Участники не найдены
+                    </div>
+                  ) : (
+                    filteredShopParticipants.map((p) => {
+                      const isSelected = p.id === selectedShopParticipantId;
+                      const bal = getParticipantBalance(p, games);
+
+                      return (
+                        <div
+                          key={p.id}
+                          onClick={() => setSelectedShopParticipantId(p.id)}
+                          className={`p-3.5 transition-colors cursor-pointer flex items-center justify-between gap-3 ${
+                            isSelected
+                              ? 'bg-emerald-50 border-l-4 border-emerald-600'
+                              : 'hover:bg-gray-50'
+                          }`}
+                        >
+                          <div className="min-w-0 flex items-center gap-2.5">
+                            <div
+                              className={`w-8 h-8 rounded-full font-bold text-xs flex items-center justify-center shrink-0 ${
+                                isSelected ? 'bg-emerald-600 text-white' : 'bg-gray-100 text-gray-700'
+                              }`}
+                            >
+                              {p.name.charAt(0)}
+                            </div>
+                            <div className="min-w-0">
+                              <div className="font-bold text-gray-900 text-xs truncate">
+                                {p.name}
+                              </div>
+                              <div className="text-[10px] text-gray-500 truncate">
+                                ID: <span className="font-mono">{p.id}</span>
+                                {p.phone && ` • ${p.phone}`}
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="text-right shrink-0">
+                            <div className="text-xs font-black text-emerald-700 bg-emerald-100/60 px-2 py-0.5 rounded-lg border border-emerald-200 inline-block">
+                              {bal.remainingScore} {sampleShopCurrency}
+                            </div>
+                            <div className="text-[9px] text-gray-400 mt-0.5">
+                              Собрано: {bal.earnedScore}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
+
+              {/* Right Column: Active Participant Cashier Desk */}
+              <div className="lg:col-span-7 space-y-4">
+                {activeShopParticipant && activeShopBalance ? (
+                  <div className="bg-white rounded-3xl border border-emerald-200 p-6 shadow-xs space-y-5">
+                    {/* Participant Header */}
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-gray-100 pb-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-12 h-12 rounded-2xl bg-emerald-600 text-white font-black text-lg flex items-center justify-center font-serif shadow-xs">
+                          {activeShopParticipant.name.charAt(0)}
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <h3 className="text-lg font-bold text-gray-900 font-serif">
+                              {activeShopParticipant.name}
+                            </h3>
+                            <button
+                              type="button"
+                              onClick={() => handleViewParticipantHistory(activeShopParticipant)}
+                              className="text-[11px] text-emerald-700 hover:underline flex items-center gap-0.5 cursor-pointer"
+                            >
+                              <span>(весь маршрут)</span>
+                            </button>
+                          </div>
+                          <div className="text-xs text-gray-500 flex items-center gap-2 flex-wrap mt-0.5">
+                            <span className="font-mono font-semibold">ID: {activeShopParticipant.id}</span>
+                            {activeShopParticipant.phone && <span>• Тел: {activeShopParticipant.phone}</span>}
+                            {activeShopParticipant.cityOrTeam && (
+                              <span className="text-red-600 font-medium">• {activeShopParticipant.cityOrTeam}</span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => setSelectedShopParticipantId(null)}
+                        className="self-end sm:self-center text-xs text-gray-400 hover:text-gray-600 px-3 py-1 rounded-lg border border-gray-200 cursor-pointer"
+                      >
+                        Сменить
+                      </button>
+                    </div>
+
+                    {/* 3 Prominent Balance Cards */}
+                    <div className="grid grid-cols-3 gap-3">
+                      <div className="p-3.5 rounded-2xl bg-amber-50/70 border border-amber-200 text-center">
+                        <div className="text-[11px] text-amber-800 font-medium">Собрано</div>
+                        <div className="text-xl sm:text-2xl font-bold text-amber-950 mt-0.5">
+                          {activeShopBalance.earnedScore}
+                        </div>
+                        <div className="text-[10px] text-amber-700 truncate">{sampleShopCurrency}</div>
+                      </div>
+
+                      <div className="p-3.5 rounded-2xl bg-purple-50/70 border border-purple-200 text-center">
+                        <div className="text-[11px] text-purple-800 font-medium">Потрачено</div>
+                        <div className="text-xl sm:text-2xl font-bold text-purple-950 mt-0.5">
+                          {activeShopBalance.spentScore}
+                        </div>
+                        <div className="text-[10px] text-purple-700 truncate">в магазине</div>
+                      </div>
+
+                      <div className="p-3.5 rounded-2xl bg-emerald-50 border-2 border-emerald-500 text-center shadow-xs">
+                        <div className="text-[11px] text-emerald-800 font-bold flex items-center justify-center gap-1">
+                          <Coins className="w-3.5 h-3.5 text-emerald-600" />
+                          <span>Остаток</span>
+                        </div>
+                        <div className="text-2xl sm:text-3xl font-black text-emerald-700 mt-0.5">
+                          {activeShopBalance.remainingScore}
+                        </div>
+                        <div className="text-[10px] text-emerald-800 font-bold truncate">к выдаче / покупке</div>
+                      </div>
+                    </div>
+
+                    {/* Fast Physical Prizes if applicable */}
+                    {(() => {
+                      const participantGames = games.filter(g => activeShopParticipant.completedGames.includes(g.id));
+                      const physicalGames = participantGames.filter(
+                        g => (g.showPhysicalReward ?? Boolean(g.physicalReward)) && g.physicalReward
+                      );
+                      const unclaimedGames = physicalGames.filter(g => !activeShopParticipant.claimedRewards?.[g.id]);
+
+                      if (unclaimedGames.length === 0) return null;
+
+                      return (
+                        <div className="p-3.5 rounded-2xl bg-amber-50/80 border border-amber-300 space-y-2">
+                          <div className="flex items-center justify-between text-xs font-bold text-amber-950">
+                            <span className="flex items-center gap-1.5">
+                              <Gift className="w-4 h-4 text-amber-600" />
+                              <span>Призы за пройденные точки к выдаче ({unclaimedGames.length}):</span>
+                            </span>
+                          </div>
+                          <div className="space-y-1.5">
+                            {unclaimedGames.map(game => (
+                              <div key={game.id} className="p-2 rounded-xl bg-white border border-amber-200 text-xs flex items-center justify-between gap-2">
+                                <div>
+                                  <span className="font-bold text-gray-900">{game.physicalReward}</span>
+                                  <span className="text-[10px] text-gray-500 ml-1.5">({game.name})</span>
+                                </div>
+                                <button
+                                  type="button"
+                                  disabled={isClaimingReward}
+                                  onClick={() => handleClaimReward(activeShopParticipant.id, game.id, game.physicalReward)}
+                                  className="px-2.5 py-1 rounded-lg bg-amber-500 hover:bg-amber-600 text-white font-bold text-[11px] cursor-pointer"
+                                >
+                                  Выдать приз ✓
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    })()}
+
+                    {/* REDEMPTION ACTION FORM */}
+                    <div className="p-4 rounded-2xl bg-gray-50/80 border border-gray-200 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold text-gray-800 flex items-center gap-1.5">
+                          <ShoppingBag className="w-4 h-4 text-emerald-600" />
+                          <span>Оформить списание баллов или выдачу денег</span>
+                        </span>
+                        <span className="text-[11px] text-gray-500">
+                          Доступно: <strong className="text-emerald-700">{activeShopBalance.remainingScore}</strong> {sampleShopCurrency}
+                        </span>
+                      </div>
+
+                      {/* Quick amount buttons */}
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        {[1, 2, 5, 10].map(amt => (
+                          <button
+                            key={amt}
+                            type="button"
+                            onClick={() => setPointRedeemAmount(amt)}
+                            className={`px-3 py-1.5 text-xs rounded-xl font-bold border transition-colors cursor-pointer ${
+                              pointRedeemAmount === amt
+                                ? 'bg-emerald-600 text-white border-emerald-600 shadow-xs'
+                                : 'bg-white text-gray-700 hover:bg-gray-100 border-gray-200'
+                            }`}
+                          >
+                            {amt} {sampleShopCurrency}
+                          </button>
+                        ))}
+                        {activeShopBalance.remainingScore > 0 && (
+                          <button
+                            type="button"
+                            onClick={() => setPointRedeemAmount(activeShopBalance.remainingScore)}
+                            className="px-3 py-1.5 text-xs rounded-xl font-bold bg-amber-50 text-amber-900 border border-amber-300 hover:bg-amber-100 cursor-pointer"
+                          >
+                            Все {activeShopBalance.remainingScore} {sampleShopCurrency}
+                          </button>
+                        )}
+                      </div>
+
+                      {/* Form Inputs */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                        <div>
+                          <label className="text-[11px] text-gray-600 font-semibold block mb-1">
+                            Количество баллов к списанию:
+                          </label>
+                          <input
+                            type="number"
+                            min="1"
+                            max={activeShopBalance.remainingScore}
+                            value={pointRedeemAmount}
+                            onChange={(e) => setPointRedeemAmount(e.target.value === '' ? '' : Math.max(1, parseInt(e.target.value) || 1))}
+                            className="w-full px-3 py-2 text-sm rounded-xl border border-gray-300 font-bold text-gray-900 focus:outline-none focus:border-emerald-500 bg-white"
+                            placeholder="Например, 5"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="text-[11px] text-gray-600 font-semibold block mb-1">
+                            Назначение / Что выдано:
+                          </label>
+                          <input
+                            type="text"
+                            value={pointRedeemNote}
+                            onChange={(e) => setPointRedeemNote(e.target.value)}
+                            className="w-full px-3 py-2 text-sm rounded-xl border border-gray-300 text-gray-900 focus:outline-none focus:border-emerald-500 bg-white"
+                            placeholder="Сувенир, мерч, наличные..."
+                          />
+                        </div>
+                      </div>
+
+                      {/* Note presets */}
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        {['Покупка сувенира', 'Мерч фестиваля', 'Сладкий приз', 'Выдача денег / наличные', 'Угощения на поляне'].map((preset) => (
+                          <button
+                            key={preset}
+                            type="button"
+                            onClick={() => setPointRedeemNote(preset)}
+                            className={`text-[11px] px-2.5 py-1 rounded-lg border transition-colors cursor-pointer ${
+                              pointRedeemNote === preset
+                                ? 'bg-emerald-100 text-emerald-950 border-emerald-400 font-bold'
+                                : 'bg-white text-gray-600 hover:bg-gray-100 border-gray-200'
+                            }`}
+                          >
+                            {preset}
+                          </button>
+                        ))}
+                      </div>
+
+                      {/* Submit button */}
+                      <button
+                        type="button"
+                        disabled={
+                          isRedeemingPoints ||
+                          !pointRedeemAmount ||
+                          pointRedeemAmount <= 0 ||
+                          pointRedeemAmount > activeShopBalance.remainingScore
+                        }
+                        onClick={() => handleRedeemPoints(activeShopParticipant.id, Number(pointRedeemAmount), pointRedeemNote || 'Покупка в магазине')}
+                        className="w-full py-3 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-bold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-sm transition-colors cursor-pointer disabled:cursor-not-allowed"
+                      >
+                        <ShoppingBag className="w-4 h-4" />
+                        <span>
+                          {pointRedeemAmount && pointRedeemAmount > activeShopBalance.remainingScore
+                            ? `Недостаточно баллов (доступно: ${activeShopBalance.remainingScore})`
+                            : `Подтвердить списание ${pointRedeemAmount || 0} ${sampleShopCurrency}`}
+                        </span>
+                      </button>
+                    </div>
+
+                    {/* Past redemptions for this participant */}
+                    <div>
+                      <h4 className="text-xs font-bold text-gray-700 mb-2 flex items-center gap-1.5">
+                        <Receipt className="w-3.5 h-3.5 text-emerald-600" />
+                        <span>История списаний этого участника ({activeShopBalance.redemptions.length}):</span>
+                      </h4>
+
+                      {activeShopBalance.redemptions.length === 0 ? (
+                        <div className="p-3 rounded-xl bg-gray-50 border border-gray-200 text-xs text-gray-400 text-center">
+                          Списаний баллов у этого участника ещё не было
+                        </div>
+                      ) : (
+                        <div className="space-y-1.5">
+                          {activeShopBalance.redemptions.map((r) => (
+                            <div
+                              key={r.id}
+                              className="p-2.5 rounded-xl bg-white border border-gray-200 text-xs flex items-center justify-between gap-2 shadow-2xs"
+                            >
+                              <div className="min-w-0">
+                                <div className="font-bold text-gray-900 truncate">
+                                  {r.note}
+                                </div>
+                                <div className="text-[10px] text-gray-500">
+                                  {r.redeemedAt} {r.redeemedBy && `• ${r.redeemedBy}`}
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-2 shrink-0">
+                                <span className="font-bold text-red-600 bg-red-50 px-2 py-0.5 rounded border border-red-100 text-xs">
+                                  -{r.amount} {sampleShopCurrency}
+                                </span>
+                                <button
+                                  type="button"
+                                  disabled={isRedeemingPoints}
+                                  onClick={() => {
+                                    if (confirm(`Отменить списание "${r.note}" (-${r.amount} ${sampleShopCurrency}) и вернуть баллы?`)) {
+                                      handleUndoRedeemPoints(activeShopParticipant.id, r.id);
+                                    }
+                                  }}
+                                  className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors cursor-pointer"
+                                  title="Отменить списание"
+                                >
+                                  <RotateCcw className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="bg-white rounded-3xl border border-dashed border-gray-300 p-12 text-center shadow-xs">
+                    <div className="w-14 h-14 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center mx-auto mb-3">
+                      <ShoppingBag className="w-7 h-7" />
+                    </div>
+                    <h3 className="text-base font-bold text-gray-800 font-serif">
+                      Выберите участника для обслуживания на кассе
+                    </h3>
+                    <p className="text-xs text-gray-500 mt-1 max-w-sm mx-auto">
+                      Нажмите на участника в списке слева или воспользуйтесь быстрым поиском по имени, телефону или номеру ID.
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* General Festival Store Transactions Log */}
+            <div className="bg-white rounded-3xl border border-gray-200 overflow-hidden shadow-xs">
+              <div className="p-4 border-b border-gray-100 bg-gray-50/60 flex items-center justify-between">
+                <span className="text-xs font-bold text-gray-700 flex items-center gap-1.5">
+                  <Receipt className="w-4 h-4 text-emerald-600" />
+                  <span>Все операции магазина и кассы фестиваля ({allFestivalRedemptions.length})</span>
+                </span>
+                <span className="text-[11px] text-gray-500">
+                  Всего списано: <strong className="text-emerald-700">{festivalTotals.spent}</strong> {sampleShopCurrency}
+                </span>
+              </div>
+
+              {allFestivalRedemptions.length === 0 ? (
+                <div className="p-8 text-center text-xs text-gray-400">
+                  Операций в магазине пока не совершалось
+                </div>
+              ) : (
+                <div className="divide-y divide-gray-100 max-h-[380px] overflow-y-auto">
+                  {allFestivalRedemptions.map(({ participant: p, redemption: r }) => (
+                    <div
+                      key={r.id}
+                      className="p-3.5 hover:bg-gray-50/80 transition-colors flex items-center justify-between text-xs gap-3"
+                    >
+                      <div className="min-w-0 flex items-center gap-2.5">
+                        <div className="w-7 h-7 rounded-full bg-emerald-100 text-emerald-800 font-bold text-xs flex items-center justify-center shrink-0">
+                          {p.name.charAt(0)}
+                        </div>
+                        <div className="min-w-0">
+                          <div className="font-bold text-gray-900 truncate">
+                            {p.name} <span className="text-gray-400 font-mono text-[10px]">ID: {p.id}</span>
+                          </div>
+                          <div className="text-[11px] text-gray-600 truncate">
+                            {r.note}
+                          </div>
+                          <div className="text-[10px] text-gray-400">
+                            {r.redeemedAt} {r.redeemedBy && `• ${r.redeemedBy}`}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-3 shrink-0">
+                        <span className="font-black text-red-600 bg-red-50 px-2.5 py-1 rounded-lg border border-red-100 text-xs">
+                          -{r.amount} {sampleShopCurrency}
+                        </span>
+                        <button
+                          type="button"
+                          disabled={isRedeemingPoints}
+                          onClick={() => {
+                            if (confirm(`Отменить операцию "${r.note}" для ${p.name} (-${r.amount} ${sampleShopCurrency})?`)) {
+                              handleUndoRedeemPoints(p.id, r.id);
+                            }
+                          }}
+                          className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
+                          title="Отменить операцию"
+                        >
+                          <RotateCcw className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      })()}
 
       {/* TAB 5: STATS */}
       {activeTab === 'stats' && stats && (
@@ -2461,16 +3083,24 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
                   {/* Currency / points unit */}
                   <div>
-                    <label className="block font-bold text-gray-800 text-[11px] mb-1">
-                      Обозначение единиц / валюты
-                    </label>
+                    <div className="flex items-center justify-between gap-1 mb-1">
+                      <label className="block font-bold text-gray-800 text-[11px]">
+                        Обозначение единиц / валюты
+                      </label>
+                      <span className="text-[10px] font-semibold text-red-600 bg-red-50 px-2 py-0.5 rounded-full border border-red-200">
+                        Общая для всех карточек
+                      </span>
+                    </div>
                     <input
                       type="text"
-                      value={gameFormData.rewardCurrency ?? 'балл в маршрутник'}
+                      value={gameFormData.rewardCurrency ?? ''}
                       onChange={(e) => setGameFormData({ ...gameFormData, rewardCurrency: e.target.value })}
                       placeholder="балл в маршрутник, коинов, рублей, очков..."
                       className="w-full h-9 px-3 rounded-xl bg-white border border-gray-300 text-xs text-gray-900 focus:outline-none focus:border-red-500 focus:ring-1 focus:ring-red-500 font-medium"
                     />
+                    <p className="text-[10px] text-gray-500 mt-1">
+                      При сохранении автоматически обновится на всех карточках игр и во всех новых карточках
+                    </p>
                     <div className="flex items-center gap-1 flex-wrap mt-1.5">
                       {[
                         'балл в маршрутник',
@@ -2608,8 +3238,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       {selectedParticipantHistory && (() => {
         const p = selectedParticipantHistory.participant;
         const participantGames = games.filter(g => p.completedGames.includes(g.id));
-        const totalPointsEarned = participantGames.reduce((sum, g) => sum + (g.rewardPoints ?? 1), 0);
         const sampleCurr = games.find(g => g.rewardCurrency?.trim())?.rewardCurrency?.trim() || 'баллов';
+        const balance = getParticipantBalance(p, games);
 
         // Games with physical rewards completed by participant
         const physicalGames = participantGames.filter(
@@ -2625,7 +3255,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               <div className="flex items-start justify-between border-b border-gray-100 pb-3 shrink-0">
                 <div>
                   <h3 className="font-bold text-base text-gray-900 font-serif flex items-center gap-2">
-                    <span>Маршрут: {p.name}</span>
+                    <span>Маршрут и касса: {p.name}</span>
                   </h3>
                   <div className="flex items-center gap-2 text-xs text-gray-500 mt-0.5 flex-wrap">
                     <span>ID: {p.id}</span>
@@ -2642,7 +3272,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               </div>
 
               {/* Stats overview banner */}
-              <div className="grid grid-cols-3 gap-2 shrink-0">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 shrink-0">
                 <div className="p-2.5 rounded-xl bg-gray-50 border border-gray-200 text-center">
                   <div className="text-[10px] text-gray-500 font-medium">Пройдено станций</div>
                   <div className="text-base font-bold text-red-600 mt-0.5">
@@ -2650,21 +3280,187 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   </div>
                 </div>
                 <div className="p-2.5 rounded-xl bg-amber-50/80 border border-amber-200 text-center">
-                  <div className="text-[10px] text-amber-800 font-medium">Набрано очков</div>
+                  <div className="text-[10px] text-amber-800 font-medium">Собрано</div>
                   <div className="text-base font-bold text-amber-900 mt-0.5">
-                    {totalPointsEarned} <span className="text-[10px] font-medium">{sampleCurr}</span>
+                    {balance.earnedScore} <span className="text-[10px] font-medium">{sampleCurr}</span>
                   </div>
                 </div>
-                <div className="p-2.5 rounded-xl bg-rose-50 border border-rose-200 text-center">
-                  <div className="text-[10px] text-rose-800 font-medium">Призов к выдаче</div>
-                  <div className={`text-base font-bold mt-0.5 ${unclaimedGames.length > 0 ? 'text-rose-600 animate-pulse' : 'text-emerald-700'}`}>
-                    {unclaimedGames.length > 0 ? `${unclaimedGames.length} шт` : 'Все выданы ✓'}
+                <div className="p-2.5 rounded-xl bg-purple-50/80 border border-purple-200 text-center">
+                  <div className="text-[10px] text-purple-800 font-medium">Потрачено</div>
+                  <div className="text-base font-bold text-purple-900 mt-0.5">
+                    {balance.spentScore} <span className="text-[10px] font-medium">{sampleCurr}</span>
+                  </div>
+                </div>
+                <div className="p-2.5 rounded-xl bg-emerald-50 border-2 border-emerald-400 text-center shadow-xs">
+                  <div className="text-[10px] text-emerald-800 font-bold flex items-center justify-center gap-1">
+                    <Coins className="w-3 h-3 text-emerald-600" />
+                    <span>Остаток</span>
+                  </div>
+                  <div className="text-lg font-black text-emerald-700 mt-0.5">
+                    {balance.remainingScore}
                   </div>
                 </div>
               </div>
 
               {/* Scrollable Content */}
               <div className="space-y-4 overflow-y-auto flex-1 pr-1">
+                {/* POINT REDEMPTION / CASHIER SECTION */}
+                <div className="rounded-2xl bg-emerald-50/60 border border-emerald-300/80 p-3.5 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-1.5 font-bold text-xs text-emerald-950">
+                      <ShoppingBag className="w-4 h-4 text-emerald-600" />
+                      <span>Касса: списание баллов и выдача денег</span>
+                    </div>
+                    <span className="text-[10px] font-bold text-emerald-900 bg-white px-2 py-0.5 rounded-md border border-emerald-200">
+                      Доступно: {balance.remainingScore} {sampleCurr}
+                    </span>
+                  </div>
+
+                  <div className="bg-white p-3 rounded-xl border border-emerald-200 space-y-2.5">
+                    <div className="text-[11px] text-gray-600">
+                      Укажите количество баллов для списания при покупке в магазине фестиваля или выдаче денег:
+                    </div>
+
+                    {/* Quick amount chips */}
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      {[1, 2, 5, 10].map(amt => (
+                        <button
+                          key={amt}
+                          type="button"
+                          onClick={() => setPointRedeemAmount(amt)}
+                          className={`px-2.5 py-1 text-xs rounded-lg font-bold border transition-colors cursor-pointer ${
+                            pointRedeemAmount === amt
+                              ? 'bg-emerald-600 text-white border-emerald-600'
+                              : 'bg-gray-50 text-gray-700 hover:bg-gray-100 border-gray-200'
+                          }`}
+                        >
+                          {amt} {sampleCurr}
+                        </button>
+                      ))}
+                      {balance.remainingScore > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => setPointRedeemAmount(balance.remainingScore)}
+                          className="px-2.5 py-1 text-xs rounded-lg font-bold bg-amber-50 text-amber-900 border border-amber-300 hover:bg-amber-100 cursor-pointer"
+                        >
+                          Все {balance.remainingScore} {sampleCurr}
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Amount & Note Inputs */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      <div>
+                        <label className="text-[10px] text-gray-500 font-semibold block mb-0.5">
+                          Сколько баллов списать:
+                        </label>
+                        <input
+                          type="number"
+                          min="1"
+                          max={balance.remainingScore}
+                          value={pointRedeemAmount}
+                          onChange={(e) => setPointRedeemAmount(e.target.value === '' ? '' : Math.max(1, parseInt(e.target.value) || 1))}
+                          className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-gray-300 font-bold text-gray-900 focus:outline-none focus:border-emerald-500"
+                          placeholder="Количество"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10px] text-gray-500 font-semibold block mb-0.5">
+                          Назначение / товар / выдача:
+                        </label>
+                        <input
+                          type="text"
+                          value={pointRedeemNote}
+                          onChange={(e) => setPointRedeemNote(e.target.value)}
+                          className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-gray-300 text-gray-900 focus:outline-none focus:border-emerald-500"
+                          placeholder="Сувенир, мерч, наличные..."
+                        />
+                      </div>
+                    </div>
+
+                    {/* Presets */}
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      {['Покупка сувенира', 'Мерч фестиваля', 'Сладкий приз', 'Выдача денег / наличные', 'Угощения на поляне'].map((preset) => (
+                        <button
+                          key={preset}
+                          type="button"
+                          onClick={() => setPointRedeemNote(preset)}
+                          className={`text-[10px] px-2 py-0.5 rounded-md border transition-colors cursor-pointer ${
+                            pointRedeemNote === preset
+                              ? 'bg-emerald-100 text-emerald-950 border-emerald-300 font-bold'
+                              : 'bg-gray-50 text-gray-600 hover:bg-gray-100 border-gray-200'
+                          }`}
+                        >
+                          {preset}
+                        </button>
+                      ))}
+                    </div>
+
+                    {/* Action Button */}
+                    <button
+                      type="button"
+                      disabled={
+                        isRedeemingPoints ||
+                        !pointRedeemAmount ||
+                        pointRedeemAmount <= 0 ||
+                        pointRedeemAmount > balance.remainingScore
+                      }
+                      onClick={() => handleRedeemPoints(p.id, Number(pointRedeemAmount), pointRedeemNote || 'Покупка в магазине')}
+                      className="w-full py-2.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-xs transition-colors cursor-pointer disabled:cursor-not-allowed"
+                    >
+                      <ShoppingBag className="w-3.5 h-3.5" />
+                      <span>
+                        {pointRedeemAmount && pointRedeemAmount > balance.remainingScore
+                          ? `Недостаточно баллов (остаток: ${balance.remainingScore})`
+                          : `Списать ${pointRedeemAmount || 0} ${sampleCurr} и зафиксировать`}
+                      </span>
+                    </button>
+                  </div>
+
+                  {/* Redemptions list for this participant */}
+                  {balance.redemptions && balance.redemptions.length > 0 && (
+                    <div className="space-y-1.5 pt-1">
+                      <div className="text-[11px] font-bold text-gray-700 flex items-center gap-1">
+                        <Receipt className="w-3.5 h-3.5 text-emerald-600" />
+                        <span>История списаний в магазине ({balance.redemptions.length}):</span>
+                      </div>
+                      {balance.redemptions.map((r) => (
+                        <div
+                          key={r.id}
+                          className="p-2 rounded-xl bg-white border border-gray-200 text-xs flex items-center justify-between gap-2 shadow-2xs"
+                        >
+                          <div className="min-w-0">
+                            <div className="font-bold text-gray-900 truncate">
+                              {r.note}
+                            </div>
+                            <div className="text-[10px] text-gray-400">
+                              {r.redeemedAt} {r.redeemedBy && `• ${r.redeemedBy}`}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2 shrink-0">
+                            <span className="font-bold text-red-600 bg-red-50 px-2 py-0.5 rounded border border-red-100 text-xs">
+                              -{r.amount} {sampleCurr}
+                            </span>
+                            <button
+                              type="button"
+                              disabled={isRedeemingPoints}
+                              onClick={() => {
+                                if (confirm(`Отменить списание "${r.note}" (-${r.amount} ${sampleCurr}) и вернуть баллы участнику?`)) {
+                                  handleUndoRedeemPoints(p.id, r.id);
+                                }
+                              }}
+                              className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors cursor-pointer"
+                              title="Отменить списание и вернуть баллы"
+                            >
+                              <RotateCcw className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
                 {/* Physical Rewards Section */}
                 {physicalGames.length > 0 && (
                   <div className="rounded-2xl bg-amber-50/60 border border-amber-200/90 p-3.5 space-y-2.5">
@@ -2761,7 +3557,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                       {selectedParticipantHistory.history.map((h, i) => {
                         const matchingGame = games.find(g => g.id === h.gameId);
                         const gamePoints = matchingGame?.rewardPoints ?? 1;
-                        const gameCurr = matchingGame?.rewardCurrency || 'балл';
+                        const gameCurr = matchingGame?.rewardCurrency || 'балл в маршрутник';
                         const hasPhysical = (matchingGame?.showPhysicalReward ?? Boolean(matchingGame?.physicalReward)) && matchingGame?.physicalReward;
                         const isPhysClaimed = Boolean(p.claimedRewards?.[h.gameId]);
 

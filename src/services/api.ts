@@ -134,6 +134,32 @@ class ApiService {
     }
   }
 
+  async updateRewardCurrency(currency: string): Promise<Game[]> {
+    const trimmed = currency.trim();
+    try {
+      const res = await fetch('/api/settings/currency', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ currency: trimmed })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data.games)) {
+          localStorage.setItem(STORAGE_KEYS.LOCAL_GAMES, JSON.stringify(data.games));
+          return data.games;
+        }
+      }
+    } catch {
+      // offline fallback
+    }
+    const localGames: Game[] = JSON.parse(localStorage.getItem(STORAGE_KEYS.LOCAL_GAMES) || '[]');
+    for (const g of localGames) {
+      g.rewardCurrency = trimmed;
+    }
+    localStorage.setItem(STORAGE_KEYS.LOCAL_GAMES, JSON.stringify(localGames));
+    return localGames;
+  }
+
   async updateGame(id: string, updates: Partial<Game>): Promise<Game> {
     try {
       const res = await fetch(`/api/games/${id}`, {
@@ -144,6 +170,16 @@ class ApiService {
       if (!res.ok) throw new Error('Failed to update game');
       const updated: Game = await res.json();
       this.syncLocalGame(updated);
+
+      // If reward currency changed, cascade to all local games
+      if (updates.rewardCurrency && updates.rewardCurrency.trim()) {
+        const newCurrency = updates.rewardCurrency.trim();
+        const localGames: Game[] = JSON.parse(localStorage.getItem(STORAGE_KEYS.LOCAL_GAMES) || '[]');
+        for (const g of localGames) {
+          g.rewardCurrency = newCurrency;
+        }
+        localStorage.setItem(STORAGE_KEYS.LOCAL_GAMES, JSON.stringify(localGames));
+      }
 
       // Also cascade codePrefix change to local offline codes
       if (updates.codePrefix) {
@@ -168,6 +204,15 @@ class ApiService {
       const idx = localGames.findIndex(g => g.id === id);
       if (idx !== -1) {
         localGames[idx] = { ...localGames[idx], ...updates };
+
+        // If reward currency changed, cascade to all local games offline
+        if (updates.rewardCurrency && updates.rewardCurrency.trim()) {
+          const newCurrency = updates.rewardCurrency.trim();
+          for (const g of localGames) {
+            g.rewardCurrency = newCurrency;
+          }
+        }
+
         localStorage.setItem(STORAGE_KEYS.LOCAL_GAMES, JSON.stringify(localGames));
 
         // Cascade to local codes offline as well
@@ -203,6 +248,17 @@ class ApiService {
       if (!res.ok) throw new Error('Failed to create game');
       const created: Game = await res.json();
       this.syncLocalGame(created);
+
+      // If reward currency provided, cascade to all local games
+      if (gameData.rewardCurrency && gameData.rewardCurrency.trim()) {
+        const newCurrency = gameData.rewardCurrency.trim();
+        const localGames: Game[] = JSON.parse(localStorage.getItem(STORAGE_KEYS.LOCAL_GAMES) || '[]');
+        for (const g of localGames) {
+          g.rewardCurrency = newCurrency;
+        }
+        localStorage.setItem(STORAGE_KEYS.LOCAL_GAMES, JSON.stringify(localGames));
+      }
+
       return created;
     } catch {
       const localGames: Game[] = JSON.parse(localStorage.getItem(STORAGE_KEYS.LOCAL_GAMES) || '[]');
@@ -215,6 +271,15 @@ class ApiService {
         mapX: gameData.mapX ?? 50,
         mapY: gameData.mapY ?? 50
       };
+
+      // Cascade rewardCurrency across all games in offline mode
+      if (gameData.rewardCurrency && gameData.rewardCurrency.trim()) {
+        const newCurrency = gameData.rewardCurrency.trim();
+        for (const g of localGames) {
+          g.rewardCurrency = newCurrency;
+        }
+      }
+
       localGames.push(newGame);
       localStorage.setItem(STORAGE_KEYS.LOCAL_GAMES, JSON.stringify(localGames));
       return newGame;
@@ -927,6 +992,122 @@ class ApiService {
       }
       return data;
     } catch (err: any) {
+      return { success: false, error: err.message || 'Сетевая ошибка' };
+    }
+  }
+
+  async redeemPoints(
+    participantId: string,
+    amount: number,
+    note?: string,
+    adminName: string = 'Администратор магазина'
+  ): Promise<{ success: boolean; participant?: Participant; error?: string }> {
+    try {
+      const res = await fetch(`/api/participants/${participantId}/redeem-points`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ amount, note, adminName })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Ошибка списания баллов');
+
+      if (data.participant) {
+        // Sync local storage
+        const localParts: Participant[] = JSON.parse(localStorage.getItem(STORAGE_KEYS.LOCAL_PARTICIPANTS) || '[]');
+        const idx = localParts.findIndex(p => p.id === participantId);
+        if (idx !== -1) {
+          localParts[idx] = data.participant;
+          localStorage.setItem(STORAGE_KEYS.LOCAL_PARTICIPANTS, JSON.stringify(localParts));
+        }
+
+        const currentPart = this.getCurrentParticipantData();
+        if (currentPart && currentPart.id === participantId) {
+          this.setCurrentParticipant(data.participant);
+        }
+      }
+      return data;
+    } catch (err: any) {
+      // Offline fallback
+      try {
+        const localParts: Participant[] = JSON.parse(localStorage.getItem(STORAGE_KEYS.LOCAL_PARTICIPANTS) || '[]');
+        const p = localParts.find(item => item.id === participantId);
+        if (p) {
+          if (!Array.isArray(p.pointRedemptions)) p.pointRedemptions = [];
+          const now = new Date();
+          const timeFormatted = now.toLocaleDateString('ru-RU') + ' ' + now.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+          const numAmount = Math.floor(Number(amount));
+          p.pointRedemptions.unshift({
+            id: 'red-off-' + Date.now(),
+            amount: numAmount,
+            note: (note && note.trim()) || 'Покупка в магазине (офлайн)',
+            redeemedAt: timeFormatted,
+            redeemedBy: adminName
+          });
+          p.spentScore = (p.spentScore || 0) + numAmount;
+          localStorage.setItem(STORAGE_KEYS.LOCAL_PARTICIPANTS, JSON.stringify(localParts));
+
+          const currentPart = this.getCurrentParticipantData();
+          if (currentPart && currentPart.id === participantId) {
+            this.setCurrentParticipant(p);
+          }
+          return { success: true, participant: p };
+        }
+      } catch (offlineErr) {
+        console.warn('Offline redeem failed', offlineErr);
+      }
+      return { success: false, error: err.message || 'Сетевая ошибка' };
+    }
+  }
+
+  async undoRedeemPoints(
+    participantId: string,
+    redemptionId: string
+  ): Promise<{ success: boolean; participant?: Participant; error?: string }> {
+    try {
+      const res = await fetch(`/api/participants/${participantId}/undo-redeem-points`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ redemptionId })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Ошибка отмены операции');
+
+      if (data.participant) {
+        const localParts: Participant[] = JSON.parse(localStorage.getItem(STORAGE_KEYS.LOCAL_PARTICIPANTS) || '[]');
+        const idx = localParts.findIndex(p => p.id === participantId);
+        if (idx !== -1) {
+          localParts[idx] = data.participant;
+          localStorage.setItem(STORAGE_KEYS.LOCAL_PARTICIPANTS, JSON.stringify(localParts));
+        }
+
+        const currentPart = this.getCurrentParticipantData();
+        if (currentPart && currentPart.id === participantId) {
+          this.setCurrentParticipant(data.participant);
+        }
+      }
+      return data;
+    } catch (err: any) {
+      // Offline fallback
+      try {
+        const localParts: Participant[] = JSON.parse(localStorage.getItem(STORAGE_KEYS.LOCAL_PARTICIPANTS) || '[]');
+        const p = localParts.find(item => item.id === participantId);
+        if (p && Array.isArray(p.pointRedemptions)) {
+          const rIdx = p.pointRedemptions.findIndex(r => r.id === redemptionId);
+          if (rIdx !== -1) {
+            p.pointRedemptions.splice(rIdx, 1);
+            p.spentScore = p.pointRedemptions.reduce((sum, r) => sum + (Number(r.amount) || 0), 0);
+            localStorage.setItem(STORAGE_KEYS.LOCAL_PARTICIPANTS, JSON.stringify(localParts));
+
+            const currentPart = this.getCurrentParticipantData();
+            if (currentPart && currentPart.id === participantId) {
+              this.setCurrentParticipant(p);
+            }
+            return { success: true, participant: p };
+          }
+        }
+      } catch (offlineErr) {
+        console.warn('Offline undo redeem failed', offlineErr);
+      }
       return { success: false, error: err.message || 'Сетевая ошибка' };
     }
   }

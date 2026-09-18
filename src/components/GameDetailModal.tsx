@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X, CheckCircle2, MapPin, Users, PackageCheck, ScrollText, KeyRound, User, AlertCircle, Sparkles, Palette } from 'lucide-react';
 import { Game, DEFAULT_GAME_CARD_IMAGE, cleanProhibitedPhrases } from '../types';
 
@@ -17,16 +17,30 @@ export const GameDetailModal: React.FC<GameDetailModalProps> = ({
 }) => {
   const [hasArrived, setHasArrived] = useState(false);
 
+  // Keyboard ESC listener
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [onClose]);
+
   if (!game) return null;
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-gray-950/75 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4 animate-in fade-in duration-200">
+    <div
+      className="fixed inset-0 z-50 overflow-y-auto bg-gray-950/80 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4 animate-in fade-in duration-200 cursor-pointer"
+      onClick={onClose}
+    >
       <div
-        className="bg-white w-full max-w-xl rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh] border border-gray-200"
+        className="bg-white w-full max-w-xl rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh] border border-gray-200 cursor-default relative"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Banner with Game Photo */}
-        <div className="relative h-44 sm:h-52 w-full bg-gray-900 overflow-hidden border-b border-gray-200">
+        <div className="relative h-44 sm:h-52 w-full bg-gray-900 overflow-hidden border-b border-gray-200 shrink-0">
           <img
             src={game.imageUrl || DEFAULT_GAME_CARD_IMAGE}
             alt={game.name}
@@ -37,35 +51,40 @@ export const GameDetailModal: React.FC<GameDetailModalProps> = ({
             }}
           />
 
-          <div className="absolute inset-0 bg-gradient-to-t from-gray-950 via-gray-950/40 to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-t from-gray-950 via-gray-950/40 to-transparent pointer-events-none" />
 
-          {/* Close button */}
-          <button
-            onClick={onClose}
-            id="close-game-detail-btn"
-            className="absolute top-4 right-4 w-9 h-9 rounded-full bg-gray-900/80 hover:bg-gray-800 text-white flex items-center justify-center transition-colors cursor-pointer border border-gray-700"
-            aria-label="Закрыть"
-          >
-            <X className="w-5 h-5" />
-          </button>
-
-          {/* Top badges */}
-          <div className="absolute top-4 left-4 flex items-center gap-2">
-            <span className="px-2.5 py-0.5 rounded-md bg-white text-gray-900 font-mono text-xs font-bold shadow-xs">
+          {/* Top badges (constrained with right-16 so they NEVER overlap the close button on mobile) */}
+          <div className="absolute top-3 left-3 sm:top-4 sm:left-4 right-16 flex items-center gap-1.5 flex-wrap pointer-events-none z-10">
+            <span className="px-2.5 py-0.5 rounded-md bg-white text-gray-900 font-mono text-xs font-bold shadow-xs pointer-events-auto shrink-0">
               Точка #{game.number < 10 ? `0${game.number}` : game.number}
             </span>
-            <span className="px-3 py-0.5 rounded-full bg-gray-900/80 text-white text-xs font-medium border border-gray-700 backdrop-blur-xs">
+            <span className="px-2.5 py-0.5 rounded-full bg-gray-900/85 text-white text-xs font-medium border border-gray-700 backdrop-blur-xs max-w-[170px] sm:max-w-none truncate pointer-events-auto">
               Народ: <strong>{game.people}</strong>
             </span>
             {isCompleted && (
-              <span className="px-2.5 py-0.5 rounded-full bg-red-600 text-white text-xs font-bold flex items-center gap-1 shadow-xs">
+              <span className="px-2.5 py-0.5 rounded-full bg-red-600 text-white text-xs font-bold flex items-center gap-1 shadow-xs pointer-events-auto shrink-0">
                 <CheckCircle2 className="w-3.5 h-3.5" /> Пройдена
               </span>
             )}
           </div>
 
+          {/* Close button with high z-index and 44px touch target */}
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onClose();
+            }}
+            id="close-game-detail-btn"
+            className="absolute top-2.5 right-2.5 sm:top-3 sm:right-3 z-30 w-11 h-11 rounded-full bg-gray-950/85 hover:bg-gray-900 active:bg-black text-white flex items-center justify-center transition-all cursor-pointer border border-white/20 shadow-md touch-manipulation focus:outline-none"
+            aria-label="Закрыть карточку игры"
+            title="Закрыть"
+          >
+            <X className="w-5 h-5" />
+          </button>
+
           {/* Title on Banner */}
-          <div className="absolute bottom-4 left-4 right-4">
+          <div className="absolute bottom-4 left-4 right-4 pointer-events-none">
             <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-white font-serif">
               {game.name}
             </h2>
@@ -218,12 +237,22 @@ export const GameDetailModal: React.FC<GameDetailModalProps> = ({
                 <MapPin className="w-4 h-4 text-white stroke-[2.5]" />
                 <span>Я пришёл на эту точку</span>
               </button>
-              <button
-                onClick={() => onProceedToCode(game)}
-                className="text-center text-xs text-gray-500 hover:text-gray-900 py-1"
-              >
-                У меня уже есть код от ведущего →
-              </button>
+              <div className="flex items-center justify-between gap-2 pt-0.5">
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="text-xs text-gray-500 hover:text-gray-900 py-1 transition-colors cursor-pointer"
+                >
+                  ✕ Закрыть карточку
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onProceedToCode(game)}
+                  className="text-right text-xs font-semibold text-red-600 hover:text-red-700 py-1 cursor-pointer"
+                >
+                  У меня уже есть код →
+                </button>
+              </div>
             </div>
           ) : (
             <div className="space-y-3 animate-in fade-in duration-200">
@@ -241,6 +270,22 @@ export const GameDetailModal: React.FC<GameDetailModalProps> = ({
                 <KeyRound className="w-5 h-5 text-white stroke-[2.5]" />
                 <span>Ввести код ведущего</span>
               </button>
+              <div className="flex items-center justify-between gap-2 pt-0.5">
+                <button
+                  type="button"
+                  onClick={() => setHasArrived(false)}
+                  className="text-xs text-gray-500 hover:text-gray-900 py-1 transition-colors cursor-pointer"
+                >
+                  ← Назад к описанию
+                </button>
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="text-xs text-gray-500 hover:text-gray-900 py-1 transition-colors cursor-pointer"
+                >
+                  Закрыть карточку ✕
+                </button>
+              </div>
             </div>
           )}
         </div>

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { User, Phone, MapPin, ArrowRight, ShieldCheck, LogIn, UserPlus, Search, CheckCircle2, AlertTriangle, X, Mail, Users, Shield, Lock, AlertCircle, Eye } from 'lucide-react';
+import { User, Phone, MapPin, ArrowRight, ShieldCheck, LogIn, UserPlus, Search, CheckCircle2, AlertTriangle, X, Mail, Users, Shield, Lock, AlertCircle, Eye, Sparkles } from 'lucide-react';
 import { Participant } from '../types';
 import { api } from '../services/api';
 
@@ -223,32 +223,35 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         onClick={(e) => e.stopPropagation()}
       >
         {/* Banner Header */}
-        <div className="p-5 sm:p-6 bg-gray-900 text-white relative border-b border-gray-800">
-          {onClose && (
-            <button
-              type="button"
-              onClick={onClose}
-              id="auth-modal-collapse-header-btn"
-              className="absolute right-4 top-4 px-2.5 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-white flex items-center gap-1.5 transition-colors cursor-pointer text-xs font-semibold"
-              title="Свернуть окно и посмотреть карточки игр и схему точек"
-            >
-              <span>Свернуть</span>
-              <X className="w-4 h-4" />
-            </button>
-          )}
+        <div className="p-4 sm:p-6 bg-gray-900 text-white border-b border-gray-800">
+          <div className="flex items-start justify-between gap-2.5 sm:gap-3">
+            <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 flex-1">
+              <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl bg-red-600 flex items-center justify-center shadow-md text-white font-bold text-base sm:text-xl border border-red-500 font-serif shrink-0">
+                ИР
+              </div>
+              <div className="min-w-0 flex-1">
+                <h1 className="text-base sm:text-xl md:text-2xl font-bold font-serif text-white tracking-tight leading-snug">
+                  Игры народов России
+                </h1>
+                <p className="text-[11px] sm:text-xs text-gray-300 truncate sm:whitespace-normal">
+                  Маршрутный лист и личный кабинет участника квеста
+                </p>
+              </div>
+            </div>
 
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-2xl bg-red-600 flex items-center justify-center shadow-md text-white font-bold text-xl border border-red-500 font-serif shrink-0">
-              ИР
-            </div>
-            <div>
-              <h1 className="text-xl sm:text-2xl font-bold font-serif text-white tracking-tight">
-                Игры народов России
-              </h1>
-              <p className="text-xs text-gray-300">
-                Маршрутный лист и личный кабинет участника квеста
-              </p>
-            </div>
+            {onClose && (
+              <button
+                type="button"
+                onClick={onClose}
+                id="auth-modal-collapse-header-btn"
+                className="shrink-0 px-2.5 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 active:bg-white/30 text-white flex items-center gap-1.5 transition-colors cursor-pointer text-xs font-semibold"
+                title="Свернуть окно и посмотреть карточки игр и схему точек"
+                aria-label="Свернуть окно"
+              >
+                <span className="hidden xs:inline sm:inline">Свернуть</span>
+                <X className="w-4 h-4 shrink-0" />
+              </button>
+            )}
           </div>
 
           {/* Mode Tabs (Вход / Регистрация / Администратор) */}
@@ -385,8 +388,28 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               </div>
 
               {loginError && (
-                <div className="text-xs text-red-600 font-medium px-3.5 py-2.5 bg-red-50 border border-red-200 rounded-xl">
-                  {loginError}
+                <div className="text-xs text-red-700 font-medium p-3.5 bg-red-50 border-2 border-red-200 rounded-2xl space-y-2">
+                  <div className="flex items-start gap-2">
+                    <AlertCircle className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
+                    <span>{loginError}</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setActiveTab('register');
+                      if (loginName.trim()) setRegName(loginName.trim());
+                      if (loginEmailOrPhone.trim().includes('@')) {
+                        setRegEmail(loginEmailOrPhone.trim());
+                      } else if (loginEmailOrPhone.trim()) {
+                        setRegPhone(loginEmailOrPhone.trim());
+                      }
+                      setRegError(null);
+                    }}
+                    className="w-full py-2.5 px-3 rounded-xl bg-red-600 hover:bg-red-700 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-2xs transition-colors cursor-pointer"
+                  >
+                    <UserPlus className="w-3.5 h-3.5 stroke-[2.5]" />
+                    <span>Ещё не регистрировались? Создать новый профиль</span>
+                  </button>
                 </div>
               )}
 
@@ -449,44 +472,63 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               </div>
             )}
 
-            {/* Switch links: Register & Admin */}
-            <div className="pt-2 border-t border-gray-100 flex flex-col items-center gap-2">
-              <button
-                type="button"
-                onClick={() => {
-                  setActiveTab('register');
-                  setRegError(null);
-                }}
-                className="text-xs text-red-600 hover:text-red-700 font-semibold inline-flex items-center gap-1 cursor-pointer"
-              >
-                <span>Ещё не регистрировались? Создать новый профиль</span>
-                <ArrowRight className="w-3.5 h-3.5" />
-              </button>
+            {/* Prominently Highlighted Registration Block */}
+            <div className="pt-3 border-t border-gray-200/90 space-y-3">
+              <div className="p-3.5 sm:p-4 rounded-2xl bg-gradient-to-br from-red-50 via-rose-50 to-amber-50/70 border-2 border-red-300 shadow-xs text-center">
+                <div className="text-[11px] sm:text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5 flex items-center justify-center gap-1.5">
+                  <Sparkles className="w-3.5 h-3.5 text-red-600" />
+                  <span>Впервые на фестивале?</span>
+                </div>
+                <button
+                  type="button"
+                  id="auth-switch-to-register-prominent-btn"
+                  onClick={() => {
+                    setActiveTab('register');
+                    if (loginName.trim()) setRegName(loginName.trim());
+                    if (loginEmailOrPhone.trim().includes('@')) {
+                      setRegEmail(loginEmailOrPhone.trim());
+                    } else if (loginEmailOrPhone.trim()) {
+                      setRegPhone(loginEmailOrPhone.trim());
+                    }
+                    setRegError(null);
+                  }}
+                  className="w-full py-3 px-3.5 rounded-xl bg-red-600 hover:bg-red-700 active:bg-red-800 text-white font-extrabold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-sm transition-all cursor-pointer transform hover:scale-[1.01]"
+                >
+                  <UserPlus className="w-4 h-4 shrink-0 stroke-[2.5]" />
+                  <span className="tracking-tight">Ещё не регистрировались? Создать новый профиль</span>
+                  <ArrowRight className="w-4 h-4 shrink-0 stroke-[2.5]" />
+                </button>
+                <p className="text-[11px] text-gray-500 mt-2 font-medium">
+                  Займёт 30 секунд — откроется персональный маршрутный лист квеста
+                </p>
+              </div>
 
               {onClose && (
                 <button
                   type="button"
                   onClick={onClose}
                   id="auth-collapse-login-btn"
-                  className="w-full py-2.5 px-3 rounded-xl bg-gray-50 hover:bg-gray-100 border border-gray-200 text-xs font-bold text-gray-700 hover:text-gray-900 flex items-center justify-center gap-2 transition-all cursor-pointer shadow-2xs mt-1"
+                  className="w-full py-2.5 px-3 rounded-xl bg-gray-50 hover:bg-gray-100 border border-gray-200 text-xs font-bold text-gray-700 hover:text-gray-900 flex items-center justify-center gap-2 transition-all cursor-pointer shadow-2xs"
                 >
                   <Eye className="w-4 h-4 text-red-600" />
                   <span>Свернуть и посмотреть карточки игр и схему точек</span>
                 </button>
               )}
 
-              <button
-                type="button"
-                id="auth-switch-to-admin-btn"
-                onClick={() => {
-                  setActiveTab('admin');
-                  setAdminError(null);
-                }}
-                className="text-[11px] text-gray-400 hover:text-red-600 inline-flex items-center gap-1.5 transition-colors cursor-pointer py-1 px-2.5 rounded-lg hover:bg-gray-50"
-              >
-                <Shield className="w-3.5 h-3.5 text-gray-400" />
-                <span>Вход для администратора / ведущего</span>
-              </button>
+              <div className="flex justify-center">
+                <button
+                  type="button"
+                  id="auth-switch-to-admin-btn"
+                  onClick={() => {
+                    setActiveTab('admin');
+                    setAdminError(null);
+                  }}
+                  className="text-[11px] text-gray-400 hover:text-red-600 inline-flex items-center gap-1.5 transition-colors cursor-pointer py-1 px-2.5 rounded-lg hover:bg-gray-50"
+                >
+                  <Shield className="w-3.5 h-3.5 text-gray-400" />
+                  <span>Вход для администратора / ведущего</span>
+                </button>
+              </div>
             </div>
           </div>
         )}
@@ -650,45 +692,51 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             </form>
 
             {/* Switch to Login & Admin links */}
-            <div className="pt-2 border-t border-gray-100 flex flex-col items-center gap-2">
-              <button
-                type="button"
-                onClick={() => {
-                  setActiveTab('login');
-                  setLoginError(null);
-                  setLoginSelectionMessage(null);
-                  setMatchedParticipants([]);
-                }}
-                className="text-xs text-red-600 hover:text-red-700 font-semibold inline-flex items-center gap-1 cursor-pointer"
-              >
-                <span>Уже участвуете? Войти по имени и почте</span>
-                <ArrowRight className="w-3.5 h-3.5" />
-              </button>
+            <div className="pt-3 border-t border-gray-200/90 space-y-3">
+              <div className="p-3 sm:p-3.5 rounded-2xl bg-gray-50 border border-gray-200 text-center">
+                <button
+                  type="button"
+                  id="reg-switch-to-login-btn"
+                  onClick={() => {
+                    setActiveTab('login');
+                    setLoginError(null);
+                    setLoginSelectionMessage(null);
+                    setMatchedParticipants([]);
+                  }}
+                  className="text-xs text-red-600 hover:text-red-700 font-bold inline-flex items-center gap-1.5 cursor-pointer"
+                >
+                  <LogIn className="w-4 h-4 text-red-600" />
+                  <span>Уже участвуете? Войти в существующий профиль</span>
+                  <ArrowRight className="w-3.5 h-3.5" />
+                </button>
+              </div>
 
               {onClose && (
                 <button
                   type="button"
                   onClick={onClose}
                   id="auth-collapse-register-btn"
-                  className="w-full py-2.5 px-3 rounded-xl bg-gray-50 hover:bg-gray-100 border border-gray-200 text-xs font-bold text-gray-700 hover:text-gray-900 flex items-center justify-center gap-2 transition-all cursor-pointer shadow-2xs mt-1"
+                  className="w-full py-2.5 px-3 rounded-xl bg-gray-50 hover:bg-gray-100 border border-gray-200 text-xs font-bold text-gray-700 hover:text-gray-900 flex items-center justify-center gap-2 transition-all cursor-pointer shadow-2xs"
                 >
                   <Eye className="w-4 h-4 text-red-600" />
                   <span>Свернуть и посмотреть карточки игр и схему точек</span>
                 </button>
               )}
 
-              <button
-                type="button"
-                id="reg-switch-to-admin-btn"
-                onClick={() => {
-                  setActiveTab('admin');
-                  setAdminError(null);
-                }}
-                className="text-[11px] text-gray-400 hover:text-red-600 inline-flex items-center gap-1.5 transition-colors cursor-pointer py-1 px-2.5 rounded-lg hover:bg-gray-50"
-              >
-                <Shield className="w-3.5 h-3.5 text-gray-400" />
-                <span>Вход для администратора / ведущего</span>
-              </button>
+              <div className="flex justify-center">
+                <button
+                  type="button"
+                  id="reg-switch-to-admin-btn"
+                  onClick={() => {
+                    setActiveTab('admin');
+                    setAdminError(null);
+                  }}
+                  className="text-[11px] text-gray-400 hover:text-red-600 inline-flex items-center gap-1.5 transition-colors cursor-pointer py-1 px-2.5 rounded-lg hover:bg-gray-50"
+                >
+                  <Shield className="w-3.5 h-3.5 text-gray-400" />
+                  <span>Вход для администратора / ведущего</span>
+                </button>
+              </div>
             </div>
           </div>
         )}

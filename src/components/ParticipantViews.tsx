@@ -1,6 +1,6 @@
-import React from 'react';
-import { Game, Participant } from '../types';
-import { CheckCircle2, Trophy, Award, ArrowRight, Shield, LogOut, MapPin, User, Phone, Mail, Gift, Coins, Sparkles } from 'lucide-react';
+import React, { useState } from 'react';
+import { Game, Participant, getParticipantBalance } from '../types';
+import { CheckCircle2, Trophy, Award, ArrowRight, Shield, LogOut, MapPin, User, Phone, Mail, Gift, Coins, Sparkles, ShoppingBag, Receipt, ChevronDown, ChevronUp } from 'lucide-react';
 
 interface ProgressViewProps {
   participant: Participant;
@@ -25,15 +25,17 @@ export const ProgressView: React.FC<ProgressViewProps> = ({
   const completedGamesList = games.filter(g => participant.completedGames.includes(g.id));
   const remainingGamesList = games.filter(g => !participant.completedGames.includes(g.id) && g.status === 'active');
 
-  // Calculate total score and find common currency
-  const totalScore = completedGamesList.reduce((acc, g) => acc + (g.rewardPoints ?? 1), 0);
+  // Calculate balance and find common currency
+  const balance = getParticipantBalance(participant, games);
   const sampleGameWithCurrency = games.find(g => g.rewardCurrency?.trim());
-  const currencyUnit = sampleGameWithCurrency?.rewardCurrency?.trim() || 'баллов';
+  const currencyUnit = sampleGameWithCurrency?.rewardCurrency?.trim() || 'балл в маршрутник';
 
   // Games that offer a physical prize / merch
   const physicalRewardGames = completedGamesList.filter(
     g => (g.showPhysicalReward ?? Boolean(g.physicalReward)) && g.physicalReward
   );
+
+  const [isStoreHistoryOpen, setIsStoreHistoryOpen] = useState(false);
 
   return (
     <div className="space-y-6 pb-8">
@@ -55,17 +57,28 @@ export const ProgressView: React.FC<ProgressViewProps> = ({
             <div className="text-2xl font-bold text-red-600 mt-0.5">{completedCount}</div>
           </div>
           <div className="p-3.5 rounded-2xl bg-amber-50/80 border border-amber-200 text-center">
-            <div className="text-xs text-amber-800 font-medium">Набрано очков</div>
-            <div className="text-2xl font-bold text-amber-900 mt-0.5">{totalScore}</div>
+            <div className="text-xs text-amber-800 font-medium">Собрано</div>
+            <div className="text-2xl font-bold text-amber-900 mt-0.5">{balance.earnedScore}</div>
             <div className="text-[10px] text-amber-700 font-medium truncate">{currencyUnit}</div>
           </div>
-          <div className="p-3.5 rounded-2xl bg-gray-50 border border-gray-200 text-center">
-            <div className="text-xs text-gray-500 font-medium">Осталось точек</div>
-            <div className="text-2xl font-bold text-gray-900 mt-0.5">{remainingGamesList.length}</div>
+          <div className={`p-3.5 rounded-2xl border text-center ${balance.spentScore > 0 ? 'bg-purple-50/70 border-purple-200' : 'bg-gray-50 border-gray-200'}`}>
+            <div className={`text-xs font-medium ${balance.spentScore > 0 ? 'text-purple-800' : 'text-gray-500'}`}>
+              Потрачено
+            </div>
+            <div className={`text-2xl font-bold mt-0.5 ${balance.spentScore > 0 ? 'text-purple-900' : 'text-gray-600'}`}>
+              {balance.spentScore}
+            </div>
+            <div className="text-[10px] text-gray-500 font-medium truncate">в магазине</div>
           </div>
-          <div className="p-3.5 rounded-2xl bg-gray-50 border border-gray-200 text-center">
-            <div className="text-xs text-gray-500 font-medium">Всего точек</div>
-            <div className="text-2xl font-bold text-gray-800 mt-0.5">{totalCount}</div>
+          <div className="p-3.5 rounded-2xl bg-emerald-50 border border-emerald-300 text-center shadow-xs">
+            <div className="text-xs text-emerald-800 font-bold flex items-center justify-center gap-1">
+              <span>Осталось</span>
+              <Coins className="w-3.5 h-3.5 text-emerald-600" />
+            </div>
+            <div className="text-2xl font-black text-emerald-700 mt-0.5">
+              {balance.remainingScore}
+            </div>
+            <div className="text-[10px] text-emerald-700 font-bold truncate">доступно сейчас</div>
           </div>
         </div>
 
@@ -86,6 +99,82 @@ export const ProgressView: React.FC<ProgressViewProps> = ({
             <span>Ввести код следующей пройденной игры</span>
             <ArrowRight className="w-4 h-4" />
           </button>
+        )}
+      </div>
+
+      {/* Festival Shop & Balance Card */}
+      <div className="rounded-3xl bg-gradient-to-br from-white to-emerald-50/40 p-6 shadow-sm border border-emerald-200">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3">
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-2xl bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-xs">
+              <ShoppingBag className="w-5 h-5" />
+            </div>
+            <div>
+              <h3 className="text-base font-bold text-gray-900 font-serif flex items-center gap-2">
+                <span>Магазин фестиваля и касса</span>
+              </h3>
+              <p className="text-xs text-gray-500">
+                Обменивайте баллы на призы, мерч, угощения или деньги
+              </p>
+            </div>
+          </div>
+
+          <div className="px-3.5 py-1.5 rounded-2xl bg-white border border-emerald-300 flex items-center gap-2 shrink-0 shadow-2xs">
+            <div className="text-right">
+              <div className="text-[10px] text-gray-500 font-medium leading-none">Доступно к расходу:</div>
+              <div className="text-sm sm:text-base font-black text-emerald-700 leading-tight">
+                {balance.remainingScore} <span className="text-xs font-semibold">{currencyUnit}</span>
+              </div>
+            </div>
+            <Coins className="w-5 h-5 text-amber-500 shrink-0" />
+          </div>
+        </div>
+
+        <div className="p-3.5 rounded-2xl bg-emerald-100/60 border border-emerald-200 text-xs text-emerald-950 flex items-start gap-2.5">
+          <Sparkles className="w-4 h-4 text-emerald-700 shrink-0 mt-0.5" />
+          <div className="leading-relaxed">
+            <span className="font-bold block text-emerald-900">Как потратить баллы:</span>
+            Подойдите к палатке магазина или кассе фестиваля, назовите ваше имя (<span className="font-semibold">{participant.name}</span>) или ID (<span className="font-mono font-semibold">{participant.id}</span>). Администратор спишет нужное количество баллов и выдаст выбранные подарки или деньги.
+          </div>
+        </div>
+
+        {/* Store Transactions History */}
+        {balance.redemptions.length > 0 && (
+          <div className="mt-4 pt-3 border-t border-emerald-200/80">
+            <button
+              onClick={() => setIsStoreHistoryOpen(!isStoreHistoryOpen)}
+              className="w-full flex items-center justify-between text-xs font-bold text-gray-700 hover:text-gray-900 transition-colors py-1 cursor-pointer"
+            >
+              <span className="flex items-center gap-1.5">
+                <Receipt className="w-3.5 h-3.5 text-emerald-600" />
+                <span>История покупок и списаний ({balance.redemptions.length})</span>
+              </span>
+              {isStoreHistoryOpen ? <ChevronUp className="w-4 h-4 text-gray-400" /> : <ChevronDown className="w-4 h-4 text-gray-400" />}
+            </button>
+
+            {isStoreHistoryOpen && (
+              <div className="mt-2 space-y-2">
+                {balance.redemptions.map((r) => (
+                  <div
+                    key={r.id}
+                    className="p-2.5 rounded-xl bg-white border border-gray-200 text-xs flex items-center justify-between gap-2 shadow-2xs"
+                  >
+                    <div className="min-w-0">
+                      <div className="font-bold text-gray-900 truncate flex items-center gap-1.5">
+                        <span>{r.note}</span>
+                      </div>
+                      <div className="text-[10px] text-gray-500">
+                        {r.redeemedAt} {r.redeemedBy && `• ${r.redeemedBy}`}
+                      </div>
+                    </div>
+                    <div className="shrink-0 font-bold text-red-600 bg-red-50 px-2 py-0.5 rounded-md border border-red-100 text-xs">
+                      -{r.amount} {currencyUnit}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         )}
       </div>
 
@@ -252,6 +341,8 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
   onLogout,
   onOpenAdmin
 }) => {
+  const balance = getParticipantBalance(participant);
+
   return (
     <div className="max-w-md mx-auto space-y-5 pb-8">
       {/* Profile Card */}
@@ -284,23 +375,29 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
           ID участника: {participant.id}
         </div>
 
-        <div className="grid grid-cols-3 gap-2 mt-6 pt-5 border-t border-gray-100 text-center">
-          <div className="p-3 rounded-xl bg-gray-50 border border-gray-200">
-            <div className="text-[11px] text-gray-500">Пройдено</div>
-            <div className="text-xl font-bold text-red-600 mt-0.5">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-6 pt-5 border-t border-gray-100 text-center">
+          <div className="p-2.5 rounded-xl bg-gray-50 border border-gray-200">
+            <div className="text-[10px] text-gray-500">Пройдено</div>
+            <div className="text-lg font-bold text-red-600 mt-0.5">
               {participant.completedGames.length}
             </div>
           </div>
-          <div className="p-3 rounded-xl bg-amber-50/80 border border-amber-200">
-            <div className="text-[11px] text-amber-800">Призов выдано</div>
-            <div className="text-xl font-bold text-amber-900 mt-0.5">
-              {Object.keys(participant.claimedRewards || {}).length}
+          <div className="p-2.5 rounded-xl bg-amber-50/80 border border-amber-200">
+            <div className="text-[10px] text-amber-800">Собрано</div>
+            <div className="text-lg font-bold text-amber-900 mt-0.5">
+              {balance.earnedScore}
             </div>
           </div>
-          <div className="p-3 rounded-xl bg-gray-50 border border-gray-200">
-            <div className="text-[11px] text-gray-500">Последняя</div>
-            <div className="text-xs font-bold text-gray-800 mt-1.5 truncate" title={participant.lastCompletedGame || '—'}>
-              {participant.lastCompletedGame || '—'}
+          <div className="p-2.5 rounded-xl bg-purple-50/80 border border-purple-200">
+            <div className="text-[10px] text-purple-800">Потрачено</div>
+            <div className="text-lg font-bold text-purple-900 mt-0.5">
+              {balance.spentScore}
+            </div>
+          </div>
+          <div className="p-2.5 rounded-xl bg-emerald-50 border border-emerald-300">
+            <div className="text-[10px] text-emerald-800 font-bold">Осталось</div>
+            <div className="text-lg font-black text-emerald-700 mt-0.5">
+              {balance.remainingScore}
             </div>
           </div>
         </div>

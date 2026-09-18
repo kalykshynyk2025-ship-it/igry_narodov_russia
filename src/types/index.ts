@@ -7,6 +7,14 @@ export interface ClaimedRewardItem {
   claimedBy?: string;
 }
 
+export interface PointRedemptionItem {
+  id: string;
+  amount: number;
+  note: string;
+  redeemedAt: string;
+  redeemedBy?: string;
+}
+
 export interface Participant {
   id: string;
   name: string;
@@ -18,7 +26,31 @@ export interface Participant {
   lastCompletedGame?: string;
   lastCompletedAt?: string;
   totalScore?: number;
+  spentScore?: number;
+  pointRedemptions?: PointRedemptionItem[];
   claimedRewards?: Record<string, ClaimedRewardItem>;
+}
+
+export function getParticipantBalance(participant: Participant | null | undefined, games: Game[] = []) {
+  if (!participant) {
+    return { earnedScore: 0, spentScore: 0, remainingScore: 0, redemptions: [] };
+  }
+  const completedList = games.filter(g => participant.completedGames?.includes(g.id));
+  const earnedFromGames = completedList.reduce((acc, g) => acc + (g.rewardPoints ?? 1), 0);
+  const earnedScore = Math.max(participant.totalScore ?? 0, earnedFromGames);
+
+  const redemptions = Array.isArray(participant.pointRedemptions) ? participant.pointRedemptions : [];
+  const spentFromList = redemptions.reduce((acc, r) => acc + (Number(r.amount) || 0), 0);
+  const spentScore = Math.max(spentFromList, participant.spentScore || 0);
+
+  const remainingScore = Math.max(0, earnedScore - spentScore);
+
+  return {
+    earnedScore,
+    spentScore,
+    remainingScore,
+    redemptions
+  };
 }
 
 export interface Game {

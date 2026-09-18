@@ -1,7 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import { INITIAL_GAMES, INITIAL_CODES, INITIAL_PARTICIPANTS, INITIAL_COMPLETIONS, generateInitialSequentialCodes } from '../src/data/initialGames.js';
-import { Game, Code, Participant, GameCompletion, AdminStats, VerifyCodeResponse, MapCircleSettings, DEFAULT_MAP_CIRCLE_SETTINGS, DEFAULT_GAME_CARD_IMAGE } from '../src/types/index.js';
+import { Game, Code, Participant, PointRedemptionItem, GameCompletion, AdminStats, VerifyCodeResponse, MapCircleSettings, DEFAULT_MAP_CIRCLE_SETTINGS, DEFAULT_GAME_CARD_IMAGE } from '../src/types/index.js';
 
 const DB_FILE_PATH = path.join(process.cwd(), 'data', 'festival_db.json');
 
@@ -12,9 +12,34 @@ class InMemoryDatabase {
   private completions: GameCompletion[] = [];
   private mapBackgroundUrl: string = '';
   private circleSettings: MapCircleSettings = { ...DEFAULT_MAP_CIRCLE_SETTINGS };
+  private defaultRewardCurrency: string = 'балл в маршрутник';
 
   constructor() {
     this.init();
+  }
+
+  public getFestivalCurrency(): string {
+    if (this.defaultRewardCurrency && this.defaultRewardCurrency.trim()) {
+      return this.defaultRewardCurrency.trim();
+    }
+    for (const g of this.games.values()) {
+      if (g.rewardCurrency && g.rewardCurrency.trim()) {
+        return g.rewardCurrency.trim();
+      }
+    }
+    return 'балл в маршрутник';
+  }
+
+  public updateAllGamesCurrency(newCurrency: string): void {
+    const trimmed = (newCurrency || '').trim();
+    if (!trimmed) return;
+    this.defaultRewardCurrency = trimmed;
+    for (const [gId, g] of this.games.entries()) {
+      g.rewardCurrency = trimmed;
+      this.games.set(gId, g);
+    }
+    console.log(`[DB] Cascade rewardCurrency update across all ${this.games.size} games: "${trimmed}"`);
+    this.saveToFile();
   }
 
   private init() {
@@ -22,6 +47,22 @@ class InMemoryDatabase {
       if (fs.existsSync(DB_FILE_PATH)) {
         const raw = fs.readFileSync(DB_FILE_PATH, 'utf-8');
         const parsed = JSON.parse(raw);
+
+        // Detect default festival currency from settings or games
+        if (typeof parsed.defaultRewardCurrency === 'string' && parsed.defaultRewardCurrency.trim()) {
+          this.defaultRewardCurrency = parsed.defaultRewardCurrency.trim();
+        } else if (parsed.settings && typeof parsed.settings.defaultRewardCurrency === 'string') {
+          this.defaultRewardCurrency = parsed.settings.defaultRewardCurrency.trim();
+        } else if (Array.isArray(parsed.games)) {
+          // If any game has a customized rewardCurrency, adopt it as the quest-wide currency
+          const customCurr = parsed.games.find((g: any) => g.rewardCurrency && g.rewardCurrency.trim() && g.rewardCurrency.trim() !== 'балл в маршрутник');
+          if (customCurr) {
+            this.defaultRewardCurrency = customCurr.rewardCurrency.trim();
+          }
+        }
+
+        const activeCurrency = this.defaultRewardCurrency || 'балл в маршрутник';
+
         if (Array.isArray(parsed.games)) {
           for (const g of parsed.games) {
             const initialMatch = INITIAL_GAMES.find(ig => ig.id === g.id);
@@ -32,13 +73,13 @@ class InMemoryDatabase {
               if (g.mythologyDescription === undefined) g.mythologyDescription = initialMatch.mythologyDescription;
               if (g.showMythology === undefined) g.showMythology = true;
               if (g.rewardPoints === undefined) g.rewardPoints = 1;
-              if (g.rewardCurrency === undefined) g.rewardCurrency = 'балл в маршрутник';
+              g.rewardCurrency = activeCurrency;
               if (g.physicalReward === undefined) g.physicalReward = '';
               if (g.showPhysicalReward === undefined) g.showPhysicalReward = false;
               delete (g as any).mythologyDepiction;
             } else {
               if (g.rewardPoints === undefined) g.rewardPoints = 1;
-              if (g.rewardCurrency === undefined) g.rewardCurrency = 'балл в маршрутник';
+              g.rewardCurrency = activeCurrency;
               if (g.physicalReward === undefined) g.physicalReward = '';
               if (g.showPhysicalReward === undefined) g.showPhysicalReward = false;
               delete (g as any).mythologyDepiction;
@@ -55,6 +96,8 @@ class InMemoryDatabase {
           for (const p of parsed.participants) {
             if (!testIds.has(p.id) && !testEmails.has(p.email)) {
               if (!p.claimedRewards) p.claimedRewards = {};
+              if (!Array.isArray(p.pointRedemptions)) p.pointRedemptions = [];
+              p.spentScore = p.pointRedemptions.reduce((acc: number, r: PointRedemptionItem) => acc + (Number(r.amount) || 0), 0);
               this.participants.set(p.id, p);
             }
           }
@@ -157,6 +200,7 @@ class InMemoryDatabase {
         completions: this.completions,
         mapBackgroundUrl: this.mapBackgroundUrl,
         circleSettings: this.circleSettings,
+        defaultRewardCurrency: this.defaultRewardCurrency || this.getFestivalCurrency(),
         updatedAt: new Date().toISOString()
       };
       fs.writeFileSync(DB_FILE_PATH, JSON.stringify(data, null, 2), 'utf-8');
@@ -243,6 +287,18 @@ class InMemoryDatabase {
       .substring(0, 5)
       .toUpperCase() || 'POINT';
 
+    const targetCurrency = (typeof gameData.rewardCurrency === 'string' && gameData.rewardCurrency.trim())
+      ? gameData.rewardCurrency.trim()
+      : this.getFestivalCurrency();
+
+    this.defaultRewardCurrency = targetCurrency;
+
+    // Propagate to all existing games so all cards match
+    for (const [gId, g] of this.games.entries()) {
+      g.rewardCurrency = targetCurrency;
+      this.games.set(gId, g);
+    }
+
     const newGame: Game = {
       ...gameData,
       id,
@@ -252,7 +308,9 @@ class InMemoryDatabase {
       imageUrl: gameData.imageUrl || DEFAULT_GAME_CARD_IMAGE,
       mapX: typeof gameData.mapX === 'number' ? gameData.mapX : 50,
       mapY: typeof gameData.mapY === 'number' ? gameData.mapY : 50,
-      status: gameData.status || 'active'
+      status: gameData.status || 'active',
+      rewardCurrency: targetCurrency,
+      rewardPoints: typeof gameData.rewardPoints === 'number' ? gameData.rewardPoints : 1
     };
 
     this.games.set(id, newGame);
@@ -289,6 +347,17 @@ class InMemoryDatabase {
         newPrefix = 'GAME';
       }
       updates.codePrefix = newPrefix;
+    }
+
+    // If rewardCurrency was updated on this game, propagate it to ALL games in the festival!
+    if (typeof updates.rewardCurrency === 'string' && updates.rewardCurrency.trim()) {
+      const newCurrency = updates.rewardCurrency.trim();
+      this.defaultRewardCurrency = newCurrency;
+      for (const [gId, g] of this.games.entries()) {
+        g.rewardCurrency = newCurrency;
+        this.games.set(gId, g);
+      }
+      console.log(`[DB] Propagated rewardCurrency "${newCurrency}" across all ${this.games.size} games.`);
     }
 
     const updated = { ...existing, ...updates };
@@ -618,6 +687,87 @@ class InMemoryDatabase {
     this.participants.set(participantId, p);
     this.saveToFile();
     return p;
+  }
+
+  // Shop / Points Redemption
+  public redeemPoints(
+    participantId: string,
+    amount: number,
+    note?: string,
+    adminName: string = 'Администратор магазина'
+  ): { success: boolean; participant?: Participant; error?: string } {
+    const p = this.participants.get(participantId);
+    if (!p) {
+      return { success: false, error: 'Участник не найден' };
+    }
+    const numAmount = Math.floor(Number(amount));
+    if (isNaN(numAmount) || numAmount <= 0) {
+      return { success: false, error: 'Укажите корректное количество баллов (больше 0)' };
+    }
+
+    if (!Array.isArray(p.pointRedemptions)) {
+      p.pointRedemptions = [];
+    }
+
+    // Calculate total earned points
+    const earnedPoints = (p.completedGames || []).reduce((sum, gId) => {
+      const g = this.games.get(gId);
+      return sum + (g?.rewardPoints ?? 1);
+    }, 0);
+    const totalScore = Math.max(p.totalScore ?? 0, earnedPoints);
+
+    const currentSpent = p.pointRedemptions.reduce((sum, r) => sum + (Number(r.amount) || 0), 0);
+    const availableBalance = Math.max(0, totalScore - currentSpent);
+
+    if (numAmount > availableBalance) {
+      return {
+        success: false,
+        error: `Недостаточно баллов: доступно ${availableBalance}, запрошено к списанию ${numAmount}`
+      };
+    }
+
+    const now = new Date();
+    const timeFormatted = now.toLocaleDateString('ru-RU') + ' ' + now.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+
+    const newRedemption: PointRedemptionItem = {
+      id: 'red-' + Date.now() + '-' + Math.random().toString(36).substring(2, 7),
+      amount: numAmount,
+      note: (note && note.trim()) ? note.trim() : 'Покупка в магазине / выдача',
+      redeemedAt: timeFormatted,
+      redeemedBy: adminName
+    };
+
+    p.pointRedemptions.unshift(newRedemption);
+    p.spentScore = currentSpent + numAmount;
+
+    this.participants.set(participantId, p);
+    this.saveToFile();
+    return { success: true, participant: p };
+  }
+
+  public undoRedeemPoints(
+    participantId: string,
+    redemptionId: string
+  ): { success: boolean; participant?: Participant; error?: string } {
+    const p = this.participants.get(participantId);
+    if (!p) {
+      return { success: false, error: 'Участник не найден' };
+    }
+    if (!Array.isArray(p.pointRedemptions) || p.pointRedemptions.length === 0) {
+      return { success: false, error: 'Операции списания не найдены' };
+    }
+
+    const idx = p.pointRedemptions.findIndex(r => r.id === redemptionId);
+    if (idx === -1) {
+      return { success: false, error: 'Запись о списании не найдена' };
+    }
+
+    p.pointRedemptions.splice(idx, 1);
+    p.spentScore = p.pointRedemptions.reduce((sum, r) => sum + (Number(r.amount) || 0), 0);
+
+    this.participants.set(participantId, p);
+    this.saveToFile();
+    return { success: true, participant: p };
   }
 
   // Sequential Code Verification
