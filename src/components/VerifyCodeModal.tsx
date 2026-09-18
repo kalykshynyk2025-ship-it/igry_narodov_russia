@@ -114,7 +114,7 @@ export const VerifyCodeModal: React.FC<VerifyCodeModalProps> = ({
                 placeholder={
                   preselectedGame?.codePrefix
                     ? `Например: ${preselectedGame.codePrefix}-001 или ${preselectedGame.codePrefix}`
-                    : 'Например: ALTAI-001 или ALTAI'
+                    : 'Например: АЛТАЙ-001 или АЛТАЙ'
                 }
                 className="w-full h-14 px-4 text-center tracking-widest font-mono text-xl font-bold uppercase rounded-2xl bg-gray-50 border-2 border-gray-300 focus:border-red-600 focus:bg-white focus:outline-none transition-all placeholder:text-gray-400 placeholder:text-sm placeholder:tracking-normal placeholder:font-sans"
               />

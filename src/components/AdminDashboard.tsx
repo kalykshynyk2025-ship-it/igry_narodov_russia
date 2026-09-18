@@ -2803,11 +2803,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     type="text"
                     value={gameFormData.codePrefix || ''}
                     onChange={(e) => setGameFormData({ ...gameFormData, codePrefix: e.target.value.toUpperCase() })}
-                    placeholder="Например: ШАТРА или ALTAI"
+                    placeholder="Например: ШАТРА или АЛТАЙ"
                     className="w-full h-10 px-3 rounded-xl bg-gray-50 border border-gray-300 font-mono uppercase text-xs text-gray-900 focus:outline-none focus:border-red-600"
                   />
                   <p className="text-[10px] text-gray-500 mt-1 leading-tight">
-                    Игроки должны вводить проверочный код с номером очереди (например, ШАТРА-001 или ALTIY-002). При смене кодового слова все неиспользованные коды точки автоматически обновятся с сохранением номеров.
+                    Игроки должны вводить проверочный код с номером очереди (например, ШАТРА-001 или АЛТАЙ-002). При смене кодового слова все неиспользованные коды точки автоматически обновятся с сохранением номеров.
                   </p>
                 </div>
               </div>

@@ -5,6 +5,35 @@ import { Game, Code, Participant, PointRedemptionItem, GameCompletion, AdminStat
 
 const DB_FILE_PATH = path.join(process.cwd(), 'data', 'festival_db.json');
 
+export const LATIN_TO_CYRILLIC_PREFIX_MAP: Record<string, string> = {
+  'ALTAI': 'АЛТАЙ',
+  'HAZYH': 'ХАЗЫХ',
+  'NARTY': 'НАРТЫ',
+  'MAS': 'МАС',
+  'KEVYU': 'КЕВЪЮ',
+  'YIDAL': 'ЙЫДАЛ',
+  'YILDAR': 'ЙЫДАЛ',
+  'SEVEN': 'СЕВЕН',
+  'SEVER': 'СЕВЕН',
+  'ТАВОЮН': 'СЕВЕН',
+  'KAMCHY': 'КАМЧЫ',
+  'YUJME': 'ЮЖМЕ',
+  'BEGPA': 'БЕГПА',
+  'YUGER': 'ЙУГЕР',
+  'SHIY': 'ШИЙ',
+  'TARTYS': 'ТАРТЫС',
+  'KAMEN': 'КАМЕН',
+  'КАМЕНЬ': 'КАМЕН',
+  'DJIGIT': 'ДЖИГИТ',
+  'MODON': 'МОДОН',
+  'TUVA': 'ТУВА',
+  'BOYPOD': 'БОЙПОД',
+  'KYUKK': 'КЮЮКК',
+  'KONYA': 'КОНЯ',
+  'TAVR': 'ТАВР',
+  'KAMRUS': 'КАМРУС',
+};
+
 class InMemoryDatabase {
   private games: Map<string, Game> = new Map();
   private codes: Map<string, Code> = new Map();
@@ -123,8 +152,47 @@ class InMemoryDatabase {
         // Ensure each game has at least 500 sequential codes (for large festivals > 50 participants)
         this.ensureCodesPerGame(500);
 
-        // Self-heal: ensure active codes match their game's current codePrefix
+        // Ensure all games and codes have Russian prefixes if loaded with legacy Latin prefixes
         let selfHealed = false;
+        for (const [gId, game] of this.games.entries()) {
+          const rawPrefix = (game.codePrefix || '').toUpperCase().trim();
+          if (LATIN_TO_CYRILLIC_PREFIX_MAP[rawPrefix]) {
+            const newPfx = LATIN_TO_CYRILLIC_PREFIX_MAP[rawPrefix];
+            game.codePrefix = newPfx;
+            if (game.nextSequentialCode && game.nextSequentialCode.startsWith(rawPrefix)) {
+              game.nextSequentialCode = game.nextSequentialCode.replace(rawPrefix, newPfx);
+            }
+            this.games.set(gId, game);
+            selfHealed = true;
+          }
+        }
+
+        // Migrate all codes (both active and used) to Russian prefixes if needed
+        for (const [cId, codeItem] of this.codes.entries()) {
+          const parts = codeItem.code.split('-');
+          const pfx = (parts[0] || '').toUpperCase().trim();
+          if (LATIN_TO_CYRILLIC_PREFIX_MAP[pfx]) {
+            parts[0] = LATIN_TO_CYRILLIC_PREFIX_MAP[pfx];
+            codeItem.code = parts.join('-');
+            this.codes.set(cId, codeItem);
+            selfHealed = true;
+          }
+        }
+
+        // Migrate completions codeString if needed
+        for (const cmp of this.completions) {
+          if (cmp.codeString) {
+            const parts = cmp.codeString.split('-');
+            const pfx = (parts[0] || '').toUpperCase().trim();
+            if (LATIN_TO_CYRILLIC_PREFIX_MAP[pfx]) {
+              parts[0] = LATIN_TO_CYRILLIC_PREFIX_MAP[pfx];
+              cmp.codeString = parts.join('-');
+              selfHealed = true;
+            }
+          }
+        }
+
+        // Self-heal: ensure active codes match their game's current codePrefix
         for (const game of this.games.values()) {
           const expectedPrefix = (game.codePrefix || 'GAME').toUpperCase().trim();
           for (const [cId, codeItem] of this.codes.entries()) {
@@ -772,7 +840,16 @@ class InMemoryDatabase {
 
   // Sequential Code Verification
   public verifyGameCode(participantId: string, rawCode: string): VerifyCodeResponse {
-    const trimmedCode = (rawCode || '').trim().toUpperCase();
+    let trimmedCode = (rawCode || '').trim().toUpperCase();
+
+    // If participant entered code with Latin prefix (e.g. ALTAI-001), normalize to Cyrillic (АЛТАЙ-001)
+    const latinMatch = trimmedCode.match(/^([A-Z]+)([\s\-].*)?$/);
+    if (latinMatch) {
+      const pfx = latinMatch[1];
+      if (LATIN_TO_CYRILLIC_PREFIX_MAP[pfx]) {
+        trimmedCode = LATIN_TO_CYRILLIC_PREFIX_MAP[pfx] + (latinMatch[2] || '');
+      }
+    }
 
     // 1. Check code existence
     // A) Direct exact match
@@ -788,11 +865,14 @@ class InMemoryDatabase {
       );
     }
 
-    // C) Padded sequence match (e.g. ALTAI-1 or ALTAI-01 -> ALTAI-001)
+    // C) Padded sequence match (e.g. АЛТАЙ-1 or АЛТАЙ-01 -> АЛТАЙ-001)
     if (!codeEntry) {
       const matchNumber = trimmedCode.match(/^(.+)[-\s]+(\d+)$/);
       if (matchNumber) {
-        const pfx = matchNumber[1].trim();
+        let pfx = matchNumber[1].trim();
+        if (LATIN_TO_CYRILLIC_PREFIX_MAP[pfx]) {
+          pfx = LATIN_TO_CYRILLIC_PREFIX_MAP[pfx];
+        }
         const num = parseInt(matchNumber[2], 10);
         const formattedCode = `${pfx}-${String(num).padStart(3, '0')}`;
         codeEntry = Array.from(this.codes.values()).find(
@@ -807,7 +887,7 @@ class InMemoryDatabase {
       const matchingGame = Array.from(this.games.values()).find(g => {
         if (!g.codePrefix) return false;
         const pfx = g.codePrefix.toUpperCase().trim();
-        return pfx === trimmedCode || pfx === cleanRaw;
+        return pfx === trimmedCode || pfx === cleanRaw || (LATIN_TO_CYRILLIC_PREFIX_MAP[cleanRaw] === pfx);
       });
 
       if (matchingGame) {
@@ -825,7 +905,7 @@ class InMemoryDatabase {
       return {
         success: false,
         errorCode: 'NOT_FOUND',
-        message: 'Код не найден. Уточните проверочный код (например, ALTIY-001) у ведущего точки.'
+        message: 'Код не найден. Уточните проверочный код (например, АЛТАЙ-001) у ведущего точки.'
       };
     }
 
